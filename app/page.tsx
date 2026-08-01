@@ -69,10 +69,10 @@ export default function Home() {
       h('div', { style: { backgroundColor: "#ffffff", padding: "25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", marginBottom: "30px" } },
         h('h2', { style: { fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "15px", textAlign: "center" } }, "Hizmetlerimiz"),
         h('div', { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" } },
-          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Buhar Temizligi"),
-          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Koltuk Yikama"),
-          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Iç Dis Yikama"),
-          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Parlatma")
+          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Detaylı İç Dış Yıkama"),
+          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Koltuk Yıkama"),
+          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Demir Tozu Temizliği"),
+          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Far Temizliği")
         )
       ),
 
