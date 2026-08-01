@@ -30,7 +30,7 @@ export default function RandevuAl() {
     return h * 60 + m;
   };
 
-  // Tarih seçildiğinde o güne ait dolu saatleri ve 2 saatlik (120 dk) çakışmaları hesapla
+  // Tarih seçildiğinde o güne ait dolu saatleri ve 2 saatlik (120 dk) çakışmaları kesin olarak hesapla
   useEffect(() => {
     if (!date) {
       setDisabledSlots([]);
@@ -40,30 +40,36 @@ export default function RandevuAl() {
     async function checkOccupiedSlots() {
       const { data, error } = await supabase
         .from("appointments")
-        .select("appointment_date, status")
-        .ilike("appointment_date", `${date}%`);
+        .select("appointment_date, status");
 
       if (!error && data) {
         const blocked: string[] = [];
         
         data.forEach(item => {
-          const timePart = item.appointment_date.split("T")[1]?.substring(0, 5);
-          if (timePart) {
-            const existingStart = timeToMinutes(timePart);
-            const existingEnd = existingStart + 120; // 2 saat (120 dk) sürebilir
+          if (!item.appointment_date) return;
+          
+          // Veritabanındaki tarihi ve saati ayır (Örn: "2026-08-02T09:00:00")
+          const [itemDate, itemTimeFull] = item.appointment_date.split("T");
+          
+          // Sadece seçilen güne ait randevuları dikkate al
+          if (itemDate === date) {
+            const timePart = itemTimeFull ? itemTimeFull.substring(0, 5) : "";
+            if (timePart) {
+              const existingStart = timeToMinutes(timePart);
+              const existingEnd = existingStart + 120; // 2 saat (120 dk) sürüyor
 
-            // Tüm saatleri kontrol et, eğer bu randevu aralığına denk geliyorsa kapat
-            allSlots.forEach(slot => {
-              const slotStart = timeToMinutes(slot);
-              const slotEnd = slotStart + 120;
+              allSlots.forEach(slot => {
+                const slotStart = timeToMinutes(slot);
+                const slotEnd = slotStart + 120;
 
-              // Çakışma formülü: (Slot başlangıcı < Mevcut bitiş) ve (Slot bitişi > Mevcut başlangıç)
-              if (slotStart < existingEnd && slotEnd > existingStart) {
-                if (!blocked.includes(slot)) {
-                  blocked.push(slot);
+                // Çakışma kontrolü: Slot bu 2 saatlik aralığın içindeyse direkt kapat
+                if (slotStart < existingEnd && slotEnd > existingStart) {
+                  if (!blocked.includes(slot)) {
+                    blocked.push(slot);
+                  }
                 }
-              }
-            });
+              });
+            }
           }
         });
         setDisabledSlots(blocked);
@@ -83,11 +89,10 @@ export default function RandevuAl() {
     setLoading(true);
     const appointmentDateTime = `${date}T${time}:00`;
 
-    // Son dakika çakışma kontrolü (Aynı anda başka biri kapmasın)
+    // Son dakika çakışma kontrolü
     const { data: checkData } = await supabase
       .from("appointments")
-      .select("appointment_date")
-      .ilike("appointment_date", `${date}%`);
+      .select("appointment_date");
 
     if (checkData) {
       const newStart = timeToMinutes(time);
@@ -95,12 +100,16 @@ export default function RandevuAl() {
       let hasConflict = false;
 
       checkData.forEach(item => {
-        const timePart = item.appointment_date.split("T")[1]?.substring(0, 5);
-        if (timePart) {
-          const existingStart = timeToMinutes(timePart);
-          const existingEnd = existingStart + 120;
-          if (newStart < existingEnd && newEnd > existingStart) {
-            hasConflict = true;
+        if (!item.appointment_date) return;
+        const [itemDate, itemTimeFull] = item.appointment_date.split("T");
+        if (itemDate === date) {
+          const timePart = itemTimeFull ? itemTimeFull.substring(0, 5) : "";
+          if (timePart) {
+            const existingStart = timeToMinutes(timePart);
+            const existingEnd = existingStart + 120;
+            if (newStart < existingEnd && newEnd > existingStart) {
+              hasConflict = true;
+            }
           }
         }
       });
@@ -250,7 +259,7 @@ export default function RandevuAl() {
                     {allSlots.map((slot) => {
                       const isDisabled = disabledSlots.includes(slot);
                       return (
-                        <option key={slot} value={slot} disabled={isDisabled} style={{ color: isDisabled ? "#9ca3af" : "#111827" }}>
+                        <option key={slot} value={slot} disabled={isDisabled} style={{ color: isDisabled ? "#9ca3af" : "#111827", backgroundColor: isDisabled ? "#f3f4f6" : "#ffffff" }}>
                           {slot} {isDisabled ? "❌ (Dolu / Meşgul)" : "✅ Müsait"}
                         </option>
                       );
