@@ -92,12 +92,12 @@ export default function AdminPaneli() {
     if (error) {
       alert("Hata: " + error.message);
     } else {
-      alert("Seçimli saat başarıyla kapatıldı!");
+      alert("Seçilen saat başarıyla kapatıldı!");
       fetchAppointments();
     }
   };
 
-  // Duruma göre dinamik WhatsApp mesajı oluşturan fonksiyon
+  // Duruma göre dinamik ve sadakat kartı destekli WhatsApp mesajı
   const getWaMessage = (status: string, name: string) => {
     switch (status) {
       case 'onaylandi':
@@ -107,7 +107,7 @@ export default function AdminPaneli() {
       case 'basladi':
         return `Merhaba ${name}, aracınızın temizlik ve bakım işlemlerine başlanmıştır. 🧼`;
       case 'tamamlandi':
-        return `Merhaba ${name}, aracınızın işlemleri tamamlanmıştır. Bizi tercih ettiğiniz için teşekkür ederiz! 🚗✨`;
+        return `Merhaba ${name}, aracınızın işlemleri başarıyla tamamlanmıştır. 🚗✨ Sadakat kartınızı (7. yıkama hediye!) incelemek için tıklayabilirsiniz: https://hanka-mobil-web.vercel.app/uye  Bizi tercih ettiğiniz için teşekkür ederiz!`;
       case 'kapali':
         return `Merhaba ${name}, randevunuzla ilgili bilgilendirme yapmak istedik.`;
       default:
@@ -257,7 +257,7 @@ export default function AdminPaneli() {
               const formattedDate = isNaN(dateObj.getTime()) ? item.appointment_date : dateObj.toLocaleString('tr-TR');
               const status = item.status || 'onaylandi';
 
-              // Telefon numarasını temizle ve WhatsApp linkini duruma göre oluştur
+              // Telefon numarasını temizle ve WhatsApp linkini oluştur
               const cleanPhone = phone.replace(/\D/g, '').replace(/^0/, '');
               const waMessage = encodeURIComponent(getWaMessage(status, name));
               const waLink = cleanPhone ? `https://wa.me/90${cleanPhone}?text=${waMessage}` : "";
@@ -288,7 +288,7 @@ export default function AdminPaneli() {
                     
                     <button onClick={() => deleteAppointment(item.id)} style={{ padding: "6px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: "#dc2626", color: "#fff" }}>Sil</button>
                     
-                    {/* Telefonda ve Masaüstünde Doğrudan Çalışan Akıllı WhatsApp Butonu */}
+                    {/* WhatsApp Gönder Butonu */}
                     {cleanPhone && (
                       <a 
                         href={waLink}
