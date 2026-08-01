@@ -18,9 +18,19 @@ export default function RandevuAl() {
   const [disabledSlots, setDisabledSlots] = useState<string[]>([]);
   const [successDetails, setSuccessDetails] = useState<any>(null);
 
-  const allSlots = ["09:00", "11:00", "13:00", "15:00", "17:00"];
+  // Saat başı tüm olası randevu saatleri
+  const allSlots = [
+    "09:00", "10:00", "11:00", "12:00", 
+    "13:00", "14:00", "15:00", "16:00", "17:00"
+  ];
 
-  // Tarih seçildiğinde o güne ait dolu saatleri ve 2 saatlik çakışmaları hesapla
+  // Dakikaya çevirme yardımı (Çakışma hesaplaması için)
+  const timeToMinutes = (timeStr: string) => {
+    const [h, m] = timeStr.split(":").map(Number);
+    return h * 60 + m;
+  };
+
+  // Tarih seçildiğinde o güne ait dolu saatleri ve 2 saatlik (120 dk) çakışmaları hesapla
   useEffect(() => {
     if (!date) {
       setDisabledSlots([]);
@@ -35,17 +45,25 @@ export default function RandevuAl() {
 
       if (!error && data) {
         const blocked: string[] = [];
+        
         data.forEach(item => {
           const timePart = item.appointment_date.split("T")[1]?.substring(0, 5);
           if (timePart) {
-            // 1. Dolu olan saati ekle
-            blocked.push(timePart);
-            
-            // 2. 2 saatlik çalışma süresi kuralı: Bir sonraki saati de otomatik kapat!
-            const currentIndex = allSlots.indexOf(timePart);
-            if (currentIndex !== -1 && currentIndex + 1 < allSlots.length) {
-              blocked.push(allSlots[currentIndex + 1]);
-            }
+            const existingStart = timeToMinutes(timePart);
+            const existingEnd = existingStart + 120; // 2 saat (120 dk) sürebilir
+
+            // Tüm saatleri kontrol et, eğer bu randevu aralığına denk geliyorsa kapat
+            allSlots.forEach(slot => {
+              const slotStart = timeToMinutes(slot);
+              const slotEnd = slotStart + 120;
+
+              // Çakışma formülü: (Slot başlangıcı < Mevcut bitiş) ve (Slot bitişi > Mevcut başlangıç)
+              if (slotStart < existingEnd && slotEnd > existingStart) {
+                if (!blocked.includes(slot)) {
+                  blocked.push(slot);
+                }
+              }
+            });
           }
         });
         setDisabledSlots(blocked);
@@ -64,6 +82,35 @@ export default function RandevuAl() {
 
     setLoading(true);
     const appointmentDateTime = `${date}T${time}:00`;
+
+    // Son dakika çakışma kontrolü (Aynı anda başka biri kapmasın)
+    const { data: checkData } = await supabase
+      .from("appointments")
+      .select("appointment_date")
+      .ilike("appointment_date", `${date}%`);
+
+    if (checkData) {
+      const newStart = timeToMinutes(time);
+      const newEnd = newStart + 120;
+      let hasConflict = false;
+
+      checkData.forEach(item => {
+        const timePart = item.appointment_date.split("T")[1]?.substring(0, 5);
+        if (timePart) {
+          const existingStart = timeToMinutes(timePart);
+          const existingEnd = existingStart + 120;
+          if (newStart < existingEnd && newEnd > existingStart) {
+            hasConflict = true;
+          }
+        }
+      });
+
+      if (hasConflict) {
+        setLoading(false);
+        alert("Seçtiğiniz saat aralığı az önce başka bir müşteri tarafından alındı! Lütfen başka bir saat seçin.");
+        return;
+      }
+    }
 
     const newAppointment = {
       service_type: serviceType,
@@ -194,7 +241,7 @@ export default function RandevuAl() {
                   />
                 </div>
                 <div style={{ flex: 1, minWidth: "120px" }}>
-                  <label style={labelStyle}>Saat Seç (1.5 - 2 Saat Sürer)</label>
+                  <label style={labelStyle}>Saat Seç (2 Saat Sürer)</label>
                   <select 
                     value={time} 
                     onChange={(e) => setTime(e.target.value)} 
