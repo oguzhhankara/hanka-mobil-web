@@ -2,45 +2,27 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 
-export default function AdminPanel() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
-  
+export default function AdminPaneli() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [password, setPassword] = useState("");
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   
-  const [blockDate, setBlockDate] = useState(() => new Date().toISOString().split('T')[0]);
+  // Sekmeler ve Filtreler
+  const [filterTab, setFilterTab] = useState("bugun"); // 'bugun', 'secilen', 'gecmis', 'tumu'
+  const [selectedDate, setSelectedDate] = useState("");
+
+  // Saat kapatma alanları
+  const [blockDate, setBlockDate] = useState("");
   const [blockTime, setBlockTime] = useState("09:00");
 
-  const timeSlots = [
-    "09:00", "10:00", "11:00", "12:00", 
-    "13:00", "14:00", "15:00", "16:00", 
-    "17:00", "18:00", "19:00", "20:00"
-  ];
-
-  useEffect(() => {
-    const auth = sessionStorage.getItem("hanka_admin_auth");
-    if (auth === "true") {
-      setIsAuthenticated(true);
-      fetchAppointments();
-    }
-
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission !== "granted") {
-        Notification.requestPermission();
-      }
-    }
-  }, []);
-
-  const handleLogin = (e: any) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === "hanka123") {
-      sessionStorage.setItem("hanka_admin_auth", "true");
-      setIsAuthenticated(true);
+    if (password === "hanka123") {
+      setIsLoggedIn(true);
       fetchAppointments();
     } else {
-      alert("Hatalı yönetici şifresi!");
-      setPasswordInput("");
+      alert("Hatalı Şifre!");
     }
   };
 
@@ -50,7 +32,7 @@ export default function AdminPanel() {
       const { data, error } = await supabase
         .from('appointments')
         .select('*')
-        .order('appointment_date', { ascending: true });
+        .order('appointment_date', { ascending: false });
 
       if (!error && data) {
         setAppointments(data);
@@ -62,310 +44,247 @@ export default function AdminPanel() {
     }
   };
 
-  const handleBlockSlot = async (e: any) => {
-    e.preventDefault();
+  const updateStatus = async (id: string, newStatus: string) => {
     try {
-      const formattedDate = new Date(`${blockDate}T${blockTime}`).toISOString();
       const { error } = await supabase
         .from('appointments')
-        .insert([
-          {
-            guest_info: { name: "🚫 Yönetici Kapattı", phone: "-", plate: "-" },
-            location: "Bursa - Engellenen Saat",
-            appointment_date: formattedDate,
-            service_type: "Kapalı / Meşgul",
-            status: 'kapali'
-          }
-        ]);
+        .update({ status: newStatus })
+        .eq('id', id);
 
-      if (error) {
-        alert("Hata: " + error.message);
-      } else {
-        alert("Seçilen saat başarıyla kapatıldı!");
-        fetchAppointments();
+      if (!error) {
+        setAppointments(appointments.map(item => item.id === id ? { ...item, status: newStatus } : item));
       }
     } catch (err) {
-      alert("Bir hata oluştu.");
+      console.error(err);
     }
   };
 
-  const handleOpenSlot = async (id: number) => {
-    if (!confirm("Bu saati tekrar açmak istediğinize emin misiniz?")) return;
-    const { error } = await supabase
-      .from('appointments')
-      .delete()
-      .eq('id', id);
+  const deleteAppointment = async (id: string) => {
+    if (!confirm("Bu randevuyu silmek istediğine emin misin?")) return;
+    try {
+      const { error } = await supabase.from('appointments').delete().eq('id', id);
+      if (!error) {
+        setAppointments(appointments.filter(item => item.id !== id));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleBlockSlot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!blockDate) {
+      alert("Lütfen kapatılacak tarihi seçin!");
+      return;
+    }
+
+    const dateTime = `${blockDate}T${blockTime}:00`;
+    const { error } = await supabase.from("appointments").insert([
+      {
+        service_type: "Kapalı / Meşgul",
+        appointment_date: dateTime,
+        location: "Müsait Değil",
+        status: "kapali",
+        guest_info: { name: "Sistem", phone: "-", note: "Yönetici tarafından kapatıldı" }
+      }
+    ]);
 
     if (error) {
       alert("Hata: " + error.message);
     } else {
+      alert("Seçilen saat başarıyla kapatıldı!");
       fetchAppointments();
     }
   };
 
-  const updateStatus = async (id: number, status: string, customerPhone: string, customerName: string, serviceType: string) => {
-    const { error } = await supabase
-      .from('appointments')
-      .update({ status })
-      .eq('id', id);
-
-    if (error) {
-      alert("Hata: " + error.message);
-    } else {
-      fetchAppointments();
-
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-        new Notification("Hanka Mobil Yönetim", {
-          body: `${customerName} için durum güncellendi: ${status.toUpperCase()}`,
-        });
-      }
-
-      // Müşterinin toplam yıkama sayısını hesaplamak için veritabanından geçmişini çekelim
-      let washCount = 1;
-      if (customerPhone && customerPhone !== "-") {
-        try {
-          const { data: allAppts } = await supabase.from('appointments').select('*');
-          if (allAppts) {
-            const customerHistory = allAppts.filter((item: any) => {
-              const p = item.guest_info?.phone || "";
-              return p.includes(customerPhone.trim()) && item.status !== 'kapali';
-            });
-            washCount = customerHistory.length;
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      }
-
-      let statusText = status;
-      if (status === 'onaylandi') statusText = "Randevunuz Onaylandı ✅";
-      if (status === 'yolda') statusText = "Ekibimiz Yola Çıktı 🚗";
-      if (status === 'basladi') statusText = "Yıkama İşlemi Başladı 🧼";
-      if (status === 'tamamlandi') statusText = "Yıkama Tamamlandı ✨ İyi Günlerde Kullanın!";
-
-      // Sadakat / Hediye Hesaplama (Her 7. yıkama hediye)
-      let loyaltyMessage = "";
-      if (status === 'tamamlandi') {
-        if (washCount % 7 === 0) {
-          loyaltyMessage = `\n\n🎉 TEBRİKLER! Bu yıkamanız ile birlikte *7. yıkamanızı* tamamladınız! Bu yıkama SİZE HEDİYEMİZDİR 🎁 Bizi tercih ettiğiniz için teşekkür ederiz!`;
-        } else {
-          const remaining = 7 - (washCount % 7);
-          loyaltyMessage = `\n\n✨ Toplam Yıkama Sayınız: *${washCount}*\n🎁 Ücretsiz hediye yıkamanıza son *${remaining}* yıkama kaldı!`;
-        }
-      }
-
-      if (customerPhone && customerPhone !== "-") {
-        let cleanPhone = customerPhone.replace(/\D/g, '');
-        if (cleanPhone.startsWith('0')) {
-          cleanPhone = '90' + cleanPhone.substring(1);
-        } else if (!cleanPhone.startsWith('90')) {
-          cleanPhone = '90' + cleanPhone;
-        }
-
-        const message = encodeURIComponent(`Merhaba ${customerName}, Hanka Mobil Oto Yıkama bilgilendirmesi:\n\nRandevu Durumu: *${statusText}*\nHizmet: ${serviceType}${loyaltyMessage}`);
-        window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
-      }
-    }
-  };
-
-  const deleteAppointment = async (id: number) => {
-    if (!confirm("Bu randevuyu silmek istediğinize emin misiniz?")) return;
-    const { error } = await supabase
-      .from('appointments')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      alert("Hata: " + error.message);
-    } else {
-      fetchAppointments();
-    }
-  };
-
-  if (!isAuthenticated) {
+  if (!isLoggedIn) {
     return (
       <main style={{ minHeight: "100vh", backgroundColor: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", fontFamily: "sans-serif" }}>
-        <div style={{ backgroundColor: "#ffffff", padding: "35px", borderRadius: "16px", boxShadow: "0 4px 15px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", width: "100%", maxWidth: "400px", textAlign: "center" }}>
-          <h1 style={{ fontSize: "22px", fontWeight: "bold", color: "#065f46", marginBottom: "8px" }}>🔒 Hanka Mobil Yönetim</h1>
-          <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "25px" }}>Bu alana sadece yetkili personel giriş yapabilir.</p>
-          
+        <div style={{ backgroundColor: "#ffffff", padding: "30px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", width: "100%", maxWidth: "400px", border: "1px solid #d1fae5" }}>
+          <h1 style={{ fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "20px", textAlign: "center" }}>Hanka Mobil - Yönetim Girişi</h1>
           <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
             <input
               type="password"
               placeholder="Yönetici Şifresi"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              style={{ width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "15px", textAlign: "center", backgroundColor: "#fff", color: "#111" }}
-              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px" }}
             />
-            <button
-              type="submit"
-              style={{ backgroundColor: "#047857", color: "white", padding: "12px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "15px" }}
-            >
+            <button type="submit" style={{ backgroundColor: "#047857", color: "white", padding: "12px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "15px" }}>
               Giriş Yap
             </button>
           </form>
-          <div style={{ marginTop: "20px" }}>
-            <a href="/" style={{ color: "#047857", fontSize: "13px", textDecoration: "none", fontWeight: "bold" }}>← Ana Sayfaya Dön</a>
-          </div>
         </div>
       </main>
     );
   }
 
+  // Tarih ve Filtreleme Mantığı
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const filteredAppointments = appointments.filter(item => {
+    const itemDateStr = item.appointment_date ? item.appointment_date.split('T')[0] : "";
+    
+    if (filterTab === "bugun") {
+      return itemDateStr === todayStr;
+    } else if (filterTab === "secilen") {
+      return selectedDate ? itemDateStr === selectedDate : true;
+    } else if (filterTab === "gecmis") {
+      return itemDateStr < todayStr || item.status === 'tamamlandi' || item.status === 'kapali';
+    }
+    return true; // 'tumu'
+  });
+
   return (
-    <main style={{ minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "40px 20px", fontFamily: "sans-serif" }}>
+    <main style={{ minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "30px 20px", fontFamily: "sans-serif" }}>
       <div style={{ maxWidth: "800px", margin: "0 auto" }}>
         
-        <div style={{ backgroundColor: "#ffffff", padding: "25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        {/* Üst Bilgi */}
+        <div style={{ backgroundColor: "#ffffff", padding: "20px 25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <div>
-            <h1 style={{ fontSize: "24px", fontWeight: "bold", color: "#065f46", marginBottom: "5px" }}>Hanka Mobil - Yönetim Paneli</h1>
-            <p style={{ color: "#6b7280", fontSize: "14px" }}>Durum güncelleyin, otomatik sadakat hesaplamalı WhatsApp bildirimi gönderin.</p>
+            <h1 style={{ fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "4px" }}>Yönetim Paneli</h1>
+            <p style={{ color: "#6b7280", fontSize: "12px" }}>Randevuları yönet, durumu güncelle ve saat kapat.</p>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
-            <button 
-              onClick={() => { sessionStorage.removeItem("hanka_admin_auth"); setIsAuthenticated(false); }}
-              style={{ backgroundColor: "#dc2626", color: "white", padding: "10px 14px", borderRadius: "8px", border: "none", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
-            >
-              Çıkış Yap
-            </button>
-            <a href="/" style={{ backgroundColor: "#047857", color: "white", padding: "10px 14px", borderRadius: "8px", fontWeight: "bold", textDecoration: "none", fontSize: "13px", display: "flex", alignItems: "center" }}>Ana Sayfa</a>
+            <a href="/" style={{ backgroundColor: "#047857", color: "white", padding: "8px 14px", borderRadius: "8px", fontWeight: "bold", textDecoration: "none", fontSize: "13px" }}>Ana Sayfa</a>
+            <button onClick={() => setIsLoggedIn(false)} style={{ backgroundColor: "#dc2626", color: "white", padding: "8px 14px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer", fontSize: "13px" }}>Çıkış</button>
           </div>
         </div>
 
-        <div style={{ backgroundColor: "#ffffff", padding: "25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", marginBottom: "30px" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: "bold", color: "#065f46", marginBottom: "15px" }}>📅 Müsait Saat Kapat / Meşgul Et</h2>
-          <form onSubmit={handleBlockSlot} style={{ display: "flex", gap: "15px", flexWrap: "wrap", alignItems: "flex-end" }}>
-            <div style={{ flex: "1", minWidth: "200px" }}>
-              <label style={{ display: "block", fontWeight: "bold", marginBottom: "5px", color: "#065f46", fontSize: "13px" }}>Tarih Seç</label>
-              <input
-                type="date"
-                value={blockDate}
-                onChange={(e) => setBlockDate(e.target.value)}
-                style={{ width: "100%", padding: "10px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff", fontWeight: "bold" }}
-              />
-            </div>
-            <div style={{ flex: "1", minWidth: "150px" }}>
-              <label style={{ display: "block", fontWeight: "bold", marginBottom: "5px", color: "#065f46", fontSize: "13px" }}>Saat Seç</label>
-              <select
-                value={blockTime}
-                onChange={(e) => setBlockTime(e.target.value)}
-                style={{ width: "100%", padding: "10px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff", fontWeight: "bold" }}
-              >
-                {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <button
-              type="submit"
-              style={{ backgroundColor: "#dc2626", color: "white", padding: "11px 20px", borderRadius: "8px", border: "none", fontWeight: "bold", fontSize: "14px", cursor: "pointer" }}
+        {/* Saat Kapatma Paneli */}
+        <div style={{ backgroundColor: "#ffffff", padding: "20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", marginBottom: "25px" }}>
+          <h3 style={{ fontSize: "15px", fontWeight: "bold", color: "#065f46", marginBottom: "12px" }}>🔒 Müsait Saat Kapat / Meşgul Et</h3>
+          <form onSubmit={handleBlockSlot} style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+            <input 
+              type="date" 
+              value={blockDate} 
+              onChange={(e) => setBlockDate(e.target.value)} 
+              style={{ padding: "10px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "13px", flex: 1, minWidth: "140px" }}
+            />
+            <select 
+              value={blockTime} 
+              onChange={(e) => setBlockTime(e.target.value)} 
+              style={{ padding: "10px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "13px", backgroundColor: "#fff", flex: 1, minWidth: "100px" }}
             >
+              <option value="09:00">09:00</option>
+              <option value="11:00">11:00</option>
+              <option value="13:00">13:00</option>
+              <option value="15:00">15:00</option>
+              <option value="17:00">17:00</option>
+            </select>
+            <button type="submit" style={{ backgroundColor: "#dc2626", color: "white", padding: "10px 16px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px" }}>
               Saati Kapat
             </button>
           </form>
         </div>
 
-        <h2 style={{ fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "15px" }}>Gelen Randevular ve Kapalı Saatler</h2>
+        {/* Sekme / Filtre Butonları */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "10px", marginBottom: "15px" }}>
+          <button
+            onClick={() => setFilterTab("bugun")}
+            style={{ padding: "12px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: filterTab === "bugun" ? "#047857" : "#ffffff", color: filterTab === "bugun" ? "#ffffff" : "#065f46", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}
+          >
+            📅 Bugünkü Randevular
+          </button>
+          <button
+            onClick={() => setFilterTab("secilen")}
+            style={{ padding: "12px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: filterTab === "secilen" ? "#047857" : "#ffffff", color: filterTab === "secilen" ? "#ffffff" : "#065f46", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}
+          >
+            🔍 Tarih Seç
+          </button>
+          <button
+            onClick={() => setFilterTab("gecmis")}
+            style={{ padding: "12px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: filterTab === "gecmis" ? "#047857" : "#ffffff", color: filterTab === "gecmis" ? "#ffffff" : "#065f46", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}
+          >
+            📂 Geçmiş Randevular
+          </button>
+          <button
+            onClick={() => setFilterTab("tumu")}
+            style={{ padding: "12px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: filterTab === "tumu" ? "#047857" : "#ffffff", color: filterTab === "tumu" ? "#ffffff" : "#065f46", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}
+          >
+            ⚡ Tüm Randevular
+          </button>
+        </div>
 
+        {/* Eğer 'Tarih Seç' aktifse takvim göster */}
+        {filterTab === "secilen" && (
+          <div style={{ backgroundColor: "#ffffff", padding: "15px", borderRadius: "12px", marginBottom: "20px", border: "1px solid #a7f3d0", display: "flex", alignItems: "center", gap: "10px" }}>
+            <label style={{ fontWeight: "bold", color: "#065f46", fontSize: "13px" }}>Tarih Seç:</label>
+            <input 
+              type="date" 
+              value={selectedDate} 
+              onChange={(e) => setSelectedDate(e.target.value)} 
+              style={{ padding: "8px 12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "13px" }}
+            />
+          </div>
+        )}
+
+        <h3 style={{ fontSize: "16px", fontWeight: "bold", color: "#065f46", marginBottom: "15px" }}>Randevu Listesi</h3>
+
+        {/* Liste */}
         {loading ? (
-          <p style={{ textAlign: "center", color: "#047857", fontWeight: "bold", fontSize: "16px" }}>Yükleniyor...</p>
-        ) : appointments.length === 0 ? (
-          <div style={{ backgroundColor: "#ffffff", padding: "40px", borderRadius: "16px", textAlign: "center", border: "1px solid #d1fae5" }}>
-            <p style={{ color: "#6b7280", fontSize: "16px" }}>Henüz kayıt bulunmuyor.</p>
+          <p style={{ textAlign: "center", color: "#047857", fontWeight: "bold" }}>Yükleniyor...</p>
+        ) : filteredAppointments.length === 0 ? (
+          <div style={{ backgroundColor: "#ffffff", padding: "30px", borderRadius: "16px", textAlign: "center", border: "1px solid #d1fae5" }}>
+            <p style={{ color: "#6b7280", fontSize: "14px" }}>Bu sekmede gösterilecek randevu bulunmuyor.</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-            {appointments.map((item) => {
+            {filteredAppointments.map((item) => {
               const guest = item.guest_info || {};
+              const phone = guest.phone || "";
+              const name = guest.name || "İsimsiz Müşteri";
+              const note = guest.note || "-";
               const dateObj = new Date(item.appointment_date);
               const formattedDate = isNaN(dateObj.getTime()) ? item.appointment_date : dateObj.toLocaleString('tr-TR');
-              const isClosedSlot = item.status === 'kapali';
+              const status = item.status || 'onaylandi';
+
+              const waMessage = encodeURIComponent(`Merhaba ${name}, Hanka Mobil Oto Yıkama olarak randevunuz onaylanmıştır.`);
 
               return (
-                <div 
-                  key={item.id} 
-                  style={{ 
-                    backgroundColor: "#ffffff", 
-                    padding: "20px", 
-                    borderRadius: "12px", 
-                    boxShadow: "0 2px 8px rgba(16, 185, 129, 0.1)", 
-                    border: "1px solid",
-                    borderColor: isClosedSlot ? "#fecaca" : "#a7f3d0",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "10px"
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
-                    <div>
-                      <h3 style={{ fontSize: "18px", fontWeight: "bold", color: isClosedSlot ? "#dc2626" : "#065f46", marginBottom: "4px" }}>{guest.name || "Müşteri"}</h3>
-                      <p style={{ color: "#374151", fontSize: "14px", fontWeight: "600" }}>📞 {guest.phone || "-"} | 🚘 Plaka: {guest.plate || "-"}</p>
-                    </div>
-                    <span style={{ 
-                      backgroundColor: isClosedSlot ? "#fee2e2" : "#d1fae5",
-                      color: isClosedSlot ? "#dc2626" : "#065f46",
-                      padding: "6px 12px",
-                      borderRadius: "20px",
-                      fontSize: "12px",
-                      fontWeight: "bold"
-                    }}>
-                      Durum: {item.status}
+                <div key={item.id} style={{ backgroundColor: "#ffffff", padding: "18px", borderRadius: "12px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.1)", border: "1px solid #a7f3d0", display: "flex", flexDirection: "column", gap: "10px" }}>
+                  
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: "bold", color: "#065f46", fontSize: "15px" }}>{name} {phone !== "-" ? `(${phone})` : ""}</span>
+                    <span style={{ backgroundColor: status === 'kapali' ? "#fee2e2" : "#d1fae5", color: status === 'kapali' ? "#991b1b" : "#065f46", padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "bold" }}>
+                      Durum: {status}
                     </span>
                   </div>
 
-                  <div style={{ fontSize: "14px", color: "#4b5563", borderTop: "1px solid #f0fdf4", paddingTop: "8px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <span>🛠 Hizmet: {item.service_type || "-"}</span>
-                    <span>📅 Tarih & Saat: {formattedDate}</span>
+                  <div style={{ fontSize: "13px", color: "#4b5563", display: "flex", flexDirection: "column", gap: "3px" }}>
+                    <span>🛠️ Hizmet: {item.service_type || "-"}</span>
+                    <span>📅 Tarih: {formattedDate}</span>
                     <span>📍 Konum: {item.location || "-"}</span>
+                    <span>💬 Not: {note}</span>
                   </div>
 
-                  <div style={{ display: "flex", gap: "8px", marginTop: "5px", flexWrap: "wrap" }}>
-                    {isClosedSlot ? (
-                      <button
-                        onClick={() => handleOpenSlot(item.id)}
-                        style={{ backgroundColor: "#16a34a", color: "white", padding: "8px 14px", borderRadius: "6px", border: "none", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+                  {/* İşlem Butonları */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "5px", paddingTop: "10px", borderTop: "1px solid #f3f4f6", alignItems: "center" }}>
+                    <button onClick={() => updateStatus(item.id, 'onaylandi')} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'onaylandi' ? "#047857" : "#e5e7eb", color: status === 'onaylandi' ? "#fff" : "#374151" }}>Onayla + WP</button>
+                    <button onClick={() => updateStatus(item.id, 'yolda')} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'yolda' ? "#f59e0b" : "#e5e7eb", color: status === 'yolda' ? "#fff" : "#374151" }}>🚗 Yolda + WP</button>
+                    <button onClick={() => updateStatus(item.id, 'basladi')} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'basladi' ? "#3b82f6" : "#e5e7eb", color: status === 'basladi' ? "#fff" : "#374151" }}>🧼 Başladı + WP</button>
+                    <button onClick={() => updateStatus(item.id, 'tamamlandi')} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'tamamlandi' ? "#0284c7" : "#e5e7eb", color: status === 'tamamlandi' ? "#fff" : "#374151" }}>✨ Bitti + WP</button>
+                    
+                    <button onClick={() => deleteAppointment(item.id)} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: "#dc2626", color: "#fff" }}>Sil</button>
+                    
+                    {phone && phone !== "-" && (
+                      <a 
+                        href={`https://wa.me/90${phone.replace(/\D/g, '').replace(/^0/, '')}?text=${waMessage}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ marginLeft: "auto", backgroundColor: "#25d366", color: "white", padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", textDecoration: "none", display: "flex", alignItems: "center", gap: "3px" }}
                       >
-                        🔓 Saati Tekrar Aç
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => updateStatus(item.id, 'onaylandi', guest.phone, guest.name, item.service_type)}
-                          style={{ backgroundColor: item.status === 'onaylandi' ? "#065f46" : "#047857", color: "white", padding: "8px 12px", borderRadius: "6px", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}
-                        >
-                          Onayla + WP
-                        </button>
-                        <button
-                          onClick={() => updateStatus(item.id, 'yolda', guest.phone, guest.name, item.service_type)}
-                          style={{ backgroundColor: item.status === 'yolda' ? "#d97706" : "#f59e0b", color: "white", padding: "8px 12px", borderRadius: "6px", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}
-                        >
-                          🚗 Yolda + WP
-                        </button>
-                        <button
-                          onClick={() => updateStatus(item.id, 'basladi', guest.phone, guest.name, item.service_type)}
-                          style={{ backgroundColor: item.status === 'basladi' ? "#2563eb" : "#3b82f6", color: "white", padding: "8px 12px", borderRadius: "6px", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}
-                        >
-                          🧼 Başladı + WP
-                        </button>
-                        <button
-                          onClick={() => updateStatus(item.id, 'tamamlandi', guest.phone, guest.name, item.service_type)}
-                          style={{ backgroundColor: item.status === 'tamamlandi' ? "#0369a1" : "#0284c7", color: "white", padding: "8px 12px", borderRadius: "6px", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}
-                        >
-                          ✅ Bitti + WP
-                        </button>
-                        <button
-                          onClick={() => deleteAppointment(item.id)}
-                          style={{ backgroundColor: "#dc2626", color: "white", padding: "8px 12px", borderRadius: "6px", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer", marginLeft: "auto" }}
-                        >
-                          Sil
-                        </button>
-                      </>
+                        💬 WhatsApp
+                      </a>
                     )}
                   </div>
+
                 </div>
               );
             })}
           </div>
         )}
+
       </div>
     </main>
   );
