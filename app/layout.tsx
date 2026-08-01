@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Hanka Mobil - Oto Yıkama Randevu",
-  description: "Hanka Mobil Oto Yıkama Yönetim ve Randevu Sistemi",
+  title: "Hanka Mobil - Oto Yıkama",
+  description: "Hanka Mobil Oto Yıkama Randevu ve Yönetim Sistemi",
   icons: {
-    icon: "/logo.png", // public klasöründeki logon hem sekme simgesi hem logo olacak
+    icon: "/logo.png",
   },
 };
 
