@@ -1,36 +1,39 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
-export default function RandevuAl() {
+function RandevuFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // URL'den gelen tarih ve saati al (Yoksa boş / varsayılan bırak)
+  const initialDate = searchParams.get("date") || "";
+  const initialTime = searchParams.get("time") || "09:00";
+
   const [serviceType, setServiceType] = useState("İç-Dış Yıkama");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("09:00");
+  const [date, setDate] = useState(initialDate);
+  const [time, setTime] = useState(initialTime);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // Dolu veya çakışan saatleri tutacak state
   const [disabledSlots, setDisabledSlots] = useState<string[]>([]);
   const [successDetails, setSuccessDetails] = useState<any>(null);
 
-  // Saat başı tüm olası randevu saatleri
   const allSlots = [
     "09:00", "10:00", "11:00", "12:00", 
     "13:00", "14:00", "15:00", "16:00", "17:00"
   ];
 
-  // Dakikaya çevirme yardımı (Çakışma hesaplaması için)
   const timeToMinutes = (timeStr: string) => {
     const [h, m] = timeStr.split(":").map(Number);
     return h * 60 + m;
   };
 
-  // Tarih seçildiğinde o güne ait dolu saatleri ve 2 saatlik (120 dk) çakışmaları kesin olarak hesapla
+  // Tarih seçildiğinde veya değiştiğinde dolu saatleri hesapla
   useEffect(() => {
     if (!date) {
       setDisabledSlots([]);
@@ -47,22 +50,17 @@ export default function RandevuAl() {
         
         data.forEach(item => {
           if (!item.appointment_date) return;
-          
-          // Veritabanındaki tarihi ve saati ayır (Örn: "2026-08-02T09:00:00")
           const [itemDate, itemTimeFull] = item.appointment_date.split("T");
-          
-          // Sadece seçilen güne ait randevuları dikkate al
           if (itemDate === date) {
             const timePart = itemTimeFull ? itemTimeFull.substring(0, 5) : "";
             if (timePart) {
               const existingStart = timeToMinutes(timePart);
-              const existingEnd = existingStart + 120; // 2 saat (120 dk) sürüyor
+              const existingEnd = existingStart + 120; // 2 saat sürer
 
               allSlots.forEach(slot => {
                 const slotStart = timeToMinutes(slot);
                 const slotEnd = slotStart + 120;
 
-                // Çakışma kontrolü: Slot bu 2 saatlik aralığın içindeyse direkt kapat
                 if (slotStart < existingEnd && slotEnd > existingStart) {
                   if (!blocked.includes(slot)) {
                     blocked.push(slot);
@@ -325,5 +323,13 @@ export default function RandevuAl() {
 
       </div>
     </main>
+  );
+}
+
+export default function RandevuAl() {
+  return (
+    <Suspense fallback={<div style={{ textAlign: "center", padding: "50px", color: "#047857", fontWeight: "bold" }}>Yükleniyor...</div>}>
+      <RandevuFormContent />
+    </Suspense>
   );
 }
