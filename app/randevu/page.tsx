@@ -52,10 +52,14 @@ export default function RandevuAl() {
     <main style={{ minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "30px 20px", fontFamily: "sans-serif" }}>
       <div style={{ maxWidth: "600px", margin: "0 auto" }}>
         
-        {/* Üst Bar: Logo ve Ana Sayfa Butonu */}
+        {/* Üst Bar: Gerçek Logo ve Ana Sayfa Butonu */}
         <div style={{ backgroundColor: "#ffffff", padding: "15px 25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "20px" }}>🚗</span>
+            <img 
+              src="/logo.png" 
+              alt="Hanka Logo" 
+              style={{ width: "38px", height: "38px", objectFit: "contain", borderRadius: "6px" }} 
+            />
             <h2 style={{ fontSize: "18px", fontWeight: "bold", color: "#065f46", margin: 0 }}>Hanka Mobil</h2>
           </div>
           <button 
