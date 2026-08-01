@@ -13,6 +13,9 @@ export default function RandevuAl() {
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Başarılı randevu sonrası WhatsApp bağlantısı için state
+  const [successDetails, setSuccessDetails] = useState<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,27 +27,26 @@ export default function RandevuAl() {
     setLoading(true);
     const appointmentDateTime = `${date}T${time}:00`;
 
-    const { error } = await supabase.from("appointments").insert([
-      {
-        service_type: serviceType,
-        appointment_date: appointmentDateTime,
-        location: location,
-        status: "onaylandi",
-        guest_info: {
-          name: name,
-          phone: phone,
-          note: note || "Belirtilmedi",
-        },
+    const newAppointment = {
+      service_type: serviceType,
+      appointment_date: appointmentDateTime,
+      location: location || "Belirtilmedi",
+      status: "onaylandi",
+      guest_info: {
+        name: name,
+        phone: phone,
+        note: note || "Belirtilmedi",
       },
-    ]);
+    };
+
+    const { error } = await supabase.from("appointments").insert([newAppointment]);
 
     setLoading(false);
 
     if (error) {
       alert("Randevu oluşturulurken bir hata oluştu: " + error.message);
     } else {
-      alert("Randevunuz başarıyla oluşturuldu!");
-      router.push("/");
+      setSuccessDetails(newAppointment);
     }
   };
 
@@ -91,109 +93,140 @@ export default function RandevuAl() {
           </button>
         </div>
 
-        {/* Form Kutusu */}
-        <div style={{ backgroundColor: "#ffffff", padding: "25px 20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5" }}>
-          
-          <h1 style={{ fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "20px", textAlign: "center" }}>
-            Randevu Oluştur
-          </h1>
-          
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            
-            <div>
-              <label style={labelStyle}>Ana Hizmet Türü</label>
-              <select 
-                value={serviceType} 
-                onChange={(e) => setServiceType(e.target.value)} 
-                style={inputStyle}
-              >
-                <option value="İç-Dış Yıkama">İç-Dış Yıkama</option>
-                <option value="Pasta Cila">Pasta Cila</option>
-                <option value="Detaylı Temizlik">Detaylı Temizlik</option>
-                <option value="Seramik Kaplama">Seramik Kaplama</option>
-                <option value="Motor Yıkama">Motor Yıkama</option>
-              </select>
-            </div>
+        {/* EĞER RANDEVU BAŞARIYLA OLUŞTURulduysa Bu Ekran Çıkar */}
+        {successDetails ? (
+          <div style={{ backgroundColor: "#ffffff", padding: "35px 25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", textAlign: "center" }}>
+            <div style={{ fontSize: "50px", marginBottom: "15px" }}>🎉</div>
+            <h2 style={{ fontSize: "22px", fontWeight: "bold", color: "#065f46", marginBottom: "10px" }}>Randevunuz Başarıyla Alındı!</h2>
+            <p style={{ color: "#4b5563", fontSize: "14px", marginBottom: "25px", lineHeight: "1.5" }}>
+              Randevu detaylarını yöneticiye (Hanka Mobil WhatsApp hattına) anında iletmek için aşağıdaki butona tıklayabilirsin.
+            </p>
 
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: "140px" }}>
-                <label style={labelStyle}>Tarih Seç</label>
+            {/* WhatsApp Bildirim Butonu */}
+            <a 
+              href={`https://wa.me/905367793561?text=${encodeURIComponent(
+                `🚗 *Yeni Randevu Talebi!*\n\n👤 Ad Soyad: ${successDetails.guest_info.name}\n📞 Telefon: ${successDetails.guest_info.phone}\n🛠️ Hizmet: ${successDetails.service_type}\n📅 Tarih & Saat: ${successDetails.appointment_date.replace('T', ' ')}\n📍 Konum: ${successDetails.location}\n💬 Not: ${successDetails.guest_info.note}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "block", backgroundColor: "#25d366", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "10px", textDecoration: "none", fontSize: "15px", marginBottom: "12px", boxShadow: "0 4px 10px rgba(37, 211, 102, 0.3)" }}
+            >
+              💬 Yöneticiye WhatsApp ile Bildir
+            </a>
+
+            <button 
+              onClick={() => router.push("/")}
+              style={{ width: "100%", backgroundColor: "#047857", color: "white", padding: "12px", fontWeight: "bold", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px" }}
+            >
+              Ana Sayfaya Dön
+            </button>
+          </div>
+        ) : (
+          /* NORMAL RANDEVU FORMU */
+          <div style={{ backgroundColor: "#ffffff", padding: "25px 20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5" }}>
+            
+            <h1 style={{ fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "20px", textAlign: "center" }}>
+              Randevu Oluştur
+            </h1>
+            
+            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              
+              <div>
+                <label style={labelStyle}>Ana Hizmet Türü</label>
+                <select 
+                  value={serviceType} 
+                  onChange={(e) => setServiceType(e.target.value)} 
+                  style={inputStyle}
+                >
+                  <option value="İç-Dış Yıkama">İç-Dış Yıkama</option>
+                  <option value="Pasta Cila">Pasta Cila</option>
+                  <option value="Detaylı Temizlik">Detaylı Temizlik</option>
+                  <option value="Seramik Kaplama">Seramik Kaplama</option>
+                  <option value="Motor Yıkama">Motor Yıkama</option>
+                </select>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: "140px" }}>
+                  <label style={labelStyle}>Tarih Seç</label>
+                  <input 
+                    type="date" 
+                    value={date} 
+                    onChange={(e) => setDate(e.target.value)} 
+                    style={inputStyle} 
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: "120px" }}>
+                  <label style={labelStyle}>Saat Seç</label>
+                  <select 
+                    value={time} 
+                    onChange={(e) => setTime(e.target.value)} 
+                    style={inputStyle}
+                  >
+                    <option value="09:00">09:00</option>
+                    <option value="11:00">11:00</option>
+                    <option value="13:00">13:00</option>
+                    <option value="15:00">15:00</option>
+                    <option value="17:00">17:00</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Ad Soyad</label>
                 <input 
-                  type="date" 
-                  value={date} 
-                  onChange={(e) => setDate(e.target.value)} 
+                  type="text" 
+                  placeholder="Adınız Soyadınız" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
                   style={inputStyle} 
                 />
               </div>
-              <div style={{ flex: 1, minWidth: "120px" }}>
-                <label style={labelStyle}>Saat Seç</label>
-                <select 
-                  value={time} 
-                  onChange={(e) => setTime(e.target.value)} 
-                  style={inputStyle}
-                >
-                  <option value="09:00">09:00</option>
-                  <option value="11:00">11:00</option>
-                  <option value="13:00">13:00</option>
-                  <option value="15:00">15:00</option>
-                  <option value="17:00">17:00</option>
-                </select>
+
+              <div>
+                <label style={labelStyle}>Telefon Numarası</label>
+                <input 
+                  type="tel" 
+                  placeholder="05XXXXXXXXX" 
+                  value={phone} 
+                  onChange={(e) => setPhone(e.target.value)} 
+                  style={inputStyle} 
+                />
               </div>
-            </div>
 
-            <div>
-              <label style={labelStyle}>Ad Soyad</label>
-              <input 
-                type="text" 
-                placeholder="Adınız Soyadınız" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                style={inputStyle} 
-              />
-            </div>
+              <div>
+                <label style={labelStyle}>Konum / Adres</label>
+                <input 
+                  type="text" 
+                  placeholder="Araç konumu (Nilüfer, Beşevler vb.)" 
+                  value={location} 
+                  onChange={(e) => setLocation(e.target.value)} 
+                  style={inputStyle} 
+                />
+              </div>
 
-            <div>
-              <label style={labelStyle}>Telefon Numarası</label>
-              <input 
-                type="tel" 
-                placeholder="05XXXXXXXXX" 
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value)} 
-                style={inputStyle} 
-              />
-            </div>
+              <div>
+                <label style={labelStyle}>Ek Hizmetler ve Özel İstekler (İsteğe bağlı)</label>
+                <textarea 
+                  placeholder="Örn: Koltuk yıkama ve far temizliği de eklenecek..." 
+                  value={note} 
+                  onChange={(e) => setNote(e.target.value)} 
+                  style={{ ...inputStyle, minHeight: "80px", resize: "vertical" }} 
+                />
+              </div>
 
-            <div>
-              <label style={labelStyle}>Konum / Adres</label>
-              <input 
-                type="text" 
-                placeholder="Araç konumu (Nilüfer, Beşevler vb.)" 
-                value={location} 
-                onChange={(e) => setLocation(e.target.value)} 
-                style={inputStyle} 
-              />
-            </div>
+              <button 
+                type="submit" 
+                disabled={loading} 
+                style={{ backgroundColor: "#047857", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "15px", marginTop: "10px", width: "100%" }}
+              >
+                {loading ? "Kaydediliyor..." : "Randevu Oluştur"}
+              </button>
 
-            <div>
-              <label style={labelStyle}>Ek Hizmetler ve Özel İstekler (İsteğe bağlı)</label>
-              <textarea 
-                placeholder="Örn: Koltuk yıkama ve far temizliği de eklenecek..." 
-                value={note} 
-                onChange={(e) => setNote(e.target.value)} 
-                style={{ ...inputStyle, minHeight: "80px", resize: "vertical" }} 
-              />
-            </div>
+            </form>
+          </div>
+        )}
 
-            <button 
-              type="submit" 
-              disabled={loading} 
-              style={{ backgroundColor: "#047857", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "15px", marginTop: "10px", width: "100%" }}
-            >
-              {loading ? "Kaydediliyor..." : "Randevu Oluştur"}
-            </button>
-
-          </form>
-        </div>
       </div>
     </main>
   );
