@@ -1,183 +1,159 @@
 "use client";
-import { useState, useEffect, createElement as h } from "react";
-import { supabase } from "../../lib/supabase"; 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 
-export default function Randevu() {
+export default function RandevuAl() {
+  const router = useRouter();
+  const [serviceType, setServiceType] = useState("İç-Dış Yıkama");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("10:00");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [location, setLocation] = useState("");
+  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    plate: "",
-    serviceType: "",
-    date: "",
-    district: "",
-    address: ""
-  });
 
-  // Hafızadan seçilen tarih ve saati çekip inputa yazıyoruz
-  useEffect(() => {
-    const savedSlot = localStorage.getItem('selectedSlot');
-    if (savedSlot) {
-      setFormData(prev => ({ ...prev, date: savedSlot }));
-      localStorage.removeItem('selectedSlot'); // Kullanıldıktan sonra temizle
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date || !name || !phone) {
+      alert("Lütfen tarih, isim ve telefon alanlarını doldurun!");
+      return;
     }
-  }, []);
 
-  const handleSubmit = async (e: any) => {
-    e.preventDefault(); 
     setLoading(true);
+    const appointmentDateTime = `${date}T${time}:00`;
 
-    try {
-      const guestInfo = {
-        name: formData.name,
-        phone: formData.phone,
-        plate: formData.plate,
-      };
+    const { error } = await supabase.from("appointments").insert([
+      {
+        service_type: serviceType,
+        appointment_date: appointmentDateTime,
+        location: location,
+        status: "onaylandi",
+        guest_info: {
+          name: name,
+          phone: phone,
+          note: note || "Belirtilmedi",
+        },
+      },
+    ]);
 
-      const fullLocation = formData.district + " - " + formData.address;
-      const formattedDate = new Date(formData.date).toISOString();
+    setLoading(false);
 
-      const { error } = await supabase
-        .from('appointments')
-        .insert([
-          {
-            guest_info: guestInfo,
-            location: fullLocation,
-            appointment_date: formattedDate,
-            service_type: formData.serviceType,
-            status: 'bekliyor'
-          }
-        ]);
-
-      if (error) {
-        alert("Hata: " + error.message);
-        setLoading(false);
-        return;
-      }
-
-      const adminWhatsAppNumber = "905000000000"; 
-      
-      const message = `🚗 *Yeni Randevu Talebi!* %0A%0A` +
-                      `👤 *Ad Soyad:* ${formData.name}%0A` +
-                      `📞 *Telefon:* ${formData.phone}%0A` +
-                      `🚘 *Plaka:* ${formData.plate}%0A` +
-                      `🛠 *Hizmet:* ${formData.serviceType}%0A` +
-                      `📅 *Tarih:* ${formData.date}%0A` +
-                      `📍 *Adres:* ${fullLocation}`;
-
-      window.open(`https://wa.me/${+905367793561}?text=${message}`, '_blank');
-
-      alert("Randevu basariyla olusturuldu ve WhatsApp'a aktarildi!");
-      setFormData({ name: "", phone: "", plate: "", serviceType: "", date: "", district: "", address: "" });
-      
-    } catch (err: any) {
-      alert("Bir hata olustu.");
-    } finally {
-      setLoading(false);
+    if (error) {
+      alert("Randevu oluşturulurken bir hata oluştu: " + error.message);
+    } else {
+      alert("Randevunuz başarıyla oluşturuldu!");
+      router.push("/");
     }
   };
 
-  return h('main', { style: { minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "40px 20px", fontFamily: "sans-serif" } },
-    h('div', { style: { maxWidth: "600px", margin: "0 auto", backgroundColor: "#ffffff", padding: "30px", borderRadius: "12px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5" } },
-      
-      h('div', { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" } },
-        h('a', { href: "/", style: { color: "#047857", fontWeight: "bold", textDecoration: "underline", fontSize: "14px" } }, "Ana Sayfaya Don"),
-        h('img', { src: "/logo.png", alt: "Hanka Logo", style: { width: "80px", height: "80px", objectFit: "contain" } })
-      ),
-
-      h('h1', { style: { fontSize: "26px", fontWeight: "bold", color: "#065f46", textAlign: "center", marginBottom: "5px" } }, "Hanka Mobil Randevu"),
-      h('p', { style: { color: "#6b7280", textAlign: "center", fontSize: "14px", marginBottom: "25px" } }, "Kapinizda profesyonel oto yikama deneyimi"),
-      
-      h('form', { onSubmit: handleSubmit, style: { display: "flex", flexDirection: "column", gap: "15px" } },
+  return (
+    <main style={{ minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "40px 20px", fontFamily: "sans-serif" }}>
+      <div style={{ maxWidth: "600px", margin: "0 auto", backgroundColor: "#ffffff", padding: "30px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5" }}>
         
-        h('div', null,
-          h('label', { style: { display: "block", fontWeight: "bold", marginBottom: "5px", color: "#065f46", fontSize: "14px" } }, "Ad Soyad *"),
-          h('input', {
-            required: true,
-            type: "text",
-            value: formData.name,
-            onChange: (e: any) => setFormData({...formData, name: e.target.value}),
-            style: { width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff" }
-          })
-        ),
+        <h1 style={{ fontSize: "24px", fontWeight: "bold", color: "#065f46", marginBottom: "20px", textAlign: "center" }}>
+          Hanka Mobil - Randevu Al
+        </h1>
+        
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+          
+          <div>
+            <label style={{ display: "block", fontSize: "14px", fontWeight: "bold", color: "#047857", marginBottom: "5px" }}>Ana Hizmet Türü</label>
+            <select 
+              value={serviceType} 
+              onChange={(e) => setServiceType(e.target.value)} 
+              style={{ width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", backgroundColor: "#fff" }}
+            >
+              <option value="İç-Dış Yıkama">İç-Dış Yıkama</option>
+              <option value="Pasta Cila">Pasta Cila</option>
+              <option value="Detaylı Temizlik">Detaylı Temizlik</option>
+              <option value="Seramik Kaplama">Seramik Kaplama</option>
+              <option value="Motor Yıkama">Motor Yıkama</option>
+            </select>
+          </div>
 
-        h('div', null,
-          h('label', { style: { display: "block", fontWeight: "bold", marginBottom: "5px", color: "#065f46", fontSize: "14px" } }, "Telefon Numarasi *"),
-          h('input', {
-            required: true,
-            type: "tel",
-            value: formData.phone,
-            onChange: (e: any) => setFormData({...formData, phone: e.target.value}),
-            style: { width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff" }
-          })
-        ),
+          <div style={{ display: "flex", gap: "10px" }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: "block", fontSize: "14px", fontWeight: "bold", color: "#047857", marginBottom: "5px" }}>Tarih Seç</label>
+              <input 
+                type="date" 
+                value={date} 
+                onChange={(e) => setDate(e.target.value)} 
+                style={{ width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", backgroundColor: "#fff" }} 
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: "block", fontSize: "14px", fontWeight: "bold", color: "#047857", marginBottom: "5px" }}>Saat Seç</label>
+              <select 
+                value={time} 
+                onChange={(e) => setTime(e.target.value)} 
+                style={{ width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", backgroundColor: "#fff" }}
+              >
+                <option value="09:00">09:00</option>
+                <option value="11:00">11:00</option>
+                <option value="13:00">13:00</option>
+                <option value="15:00">15:00</option>
+                <option value="17:00">17:00</option>
+              </select>
+            </div>
+          </div>
 
-        h('div', null,
-          h('label', { style: { display: "block", fontWeight: "bold", marginBottom: "5px", color: "#065f46", fontSize: "14px" } }, "Plaka *"),
-          h('input', {
-            required: true,
-            type: "text",
-            value: formData.plate,
-            onChange: (e: any) => setFormData({...formData, plate: e.target.value}),
-            style: { width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff" }
-          })
-        ),
+          <div>
+            <label style={{ display: "block", fontSize: "14px", fontWeight: "bold", color: "#047857", marginBottom: "5px" }}>Ad Soyad</label>
+            <input 
+              type="text" 
+              placeholder="Adınız Soyadınız" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              style={{ width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px" }} 
+            />
+          </div>
 
-        h('div', null,
-          h('label', { style: { display: "block", fontWeight: "bold", marginBottom: "5px", color: "#065f46", fontSize: "14px" } }, "Hizmet Tipi *"),
-          h('select', {
-            required: true,
-            value: formData.serviceType,
-            onChange: (e: any) => setFormData({...formData, serviceType: e.target.value}),
-            style: { width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff" }
-          },
-            h('option', { value: "", disabled: true }, "Lütfen bir hizmet seçin..."),
-            h('option', { value: "Detayli Temizlik" }, "Detayli Temizlik"),
-            h('option', { value: "Standart Iç-Dis Yikama" }, "Standart Iç-Dis Yikama"),
-            h('option', { value: "Far Temizliği" }, "Far Temizliği"),
-            h('option', { value: "Motor Yikama" }, "Motor Yikama")
-          )
-        ),
+          <div>
+            <label style={{ display: "block", fontSize: "14px", fontWeight: "bold", color: "#047857", marginBottom: "5px" }}>Telefon Numarası</label>
+            <input 
+              type="tel" 
+              placeholder="05XXXXXXXXX" 
+              value={phone} 
+              onChange={(e) => setPhone(e.target.value)} 
+              style={{ width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px" }} 
+            />
+          </div>
 
-        h('div', null,
-          h('label', { style: { display: "block", fontWeight: "bold", marginBottom: "5px", color: "#065f46", fontSize: "14px" } }, "Tarih ve Saat *"),
-          h('input', {
-            required: true,
-            type: "datetime-local",
-            value: formData.date,
-            onChange: (e: any) => setFormData({...formData, date: e.target.value}),
-            style: { width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff" }
-          })
-        ),
+          <div>
+            <label style={{ display: "block", fontSize: "14px", fontWeight: "bold", color: "#047857", marginBottom: "5px" }}>Konum / Adres</label>
+            <input 
+              type="text" 
+              placeholder="Araç konumu (Nilüfer, Beşevler vb.)" 
+              value={location} 
+              onChange={(e) => setLocation(e.target.value)} 
+              style={{ width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px" }} 
+            />
+          </div>
 
-        h('div', null,
-          h('label', { style: { display: "block", fontWeight: "bold", marginBottom: "5px", color: "#065f46", fontSize: "14px" } }, "Ilce *"),
-          h('input', {
-            required: true,
-            type: "text",
-            value: formData.district,
-            onChange: (e: any) => setFormData({...formData, district: e.target.value}),
-            placeholder: "Orn: Nilufer",
-            style: { width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff" }
-          })
-        ),
+          <div>
+            <label style={{ display: "block", fontSize: "14px", fontWeight: "bold", color: "#047857", marginBottom: "5px" }}>
+              Ek Hizmetler ve Özel İstekler (İsteğe bağlı)
+            </label>
+            <textarea 
+              placeholder="Örn: Koltuk yıkama ve far temizliği de eklenecek, ek istekler..." 
+              value={note} 
+              onChange={(e) => setNote(e.target.value)} 
+              style={{ width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", minHeight: "80px" }} 
+            />
+          </div>
 
-        h('div', null,
-          h('label', { style: { display: "block", fontWeight: "bold", marginBottom: "5px", color: "#065f46", fontSize: "14px" } }, "Adres / Tarif *"),
-          h('textarea', {
-            required: true,
-            value: formData.address,
-            onChange: (e: any) => setFormData({...formData, address: e.target.value}),
-            style: { width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff", height: "80px" }
-          })
-        ),
+          <button 
+            type="submit" 
+            disabled={loading} 
+            style={{ backgroundColor: "#047857", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "16px", marginTop: "10px" }}
+          >
+            {loading ? "Kaydediliyor..." : "Randevu Oluştur"}
+          </button>
 
-        h('button', {
-          type: "submit",
-          disabled: loading,
-          style: { backgroundColor: "#047857", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "16px", marginTop: "10px" }
-        }, loading ? "Gonderiliyor..." : "Randevuyu Tamamla ve WhatsApp'a Gönder")
-      )
-    )
+        </form>
+      </div>
+    </main>
   );
 }
