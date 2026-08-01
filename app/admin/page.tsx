@@ -85,15 +85,33 @@ export default function AdminPaneli() {
         appointment_date: dateTime,
         location: "Müsait Değil",
         status: "kapali",
-        guest_info: { name: "Sistem", phone: "-", note: "Yönetici tarafından kapatıldı" }
+        guest_info: { name: "Yönetici Kapattı", phone: "-", note: "Rezerve / Kapalı Saat" }
       }
     ]);
 
     if (error) {
       alert("Hata: " + error.message);
     } else {
-      alert("Seçilen saat başarıyla kapatıldı!");
+      alert("Seçimli saat başarıyla kapatıldı!");
       fetchAppointments();
+    }
+  };
+
+  // Duruma göre dinamik WhatsApp mesajı oluşturan fonksiyon
+  const getWaMessage = (status: string, name: string) => {
+    switch (status) {
+      case 'onaylandi':
+        return `Merhaba ${name}, Hanka Mobil Oto Yıkama olarak randevunuz onaylanmıştır. Teşekkür ederiz.`;
+      case 'yolda':
+        return `Merhaba ${name}, Hanka Mobil Oto Yıkama ekibi olarak yola çıktık, belirttiğiniz konuma geliyoruz. 🚗`;
+      case 'basladi':
+        return `Merhaba ${name}, aracınızın temizlik ve bakım işlemlerine başlanmıştır. 🧼`;
+      case 'tamamlandi':
+        return `Merhaba ${name}, aracınızın işlemleri tamamlanmıştır. Bizi tercih ettiğiniz için teşekkür ederiz! 🚗✨`;
+      case 'kapali':
+        return `Merhaba ${name}, randevunuzla ilgili bilgilendirme yapmak istedik.`;
+      default:
+        return `Merhaba ${name}, Hanka Mobil Oto Yıkama randevunuz hakkında bilgi vermek istedik.`;
     }
   };
 
@@ -239,7 +257,10 @@ export default function AdminPaneli() {
               const formattedDate = isNaN(dateObj.getTime()) ? item.appointment_date : dateObj.toLocaleString('tr-TR');
               const status = item.status || 'onaylandi';
 
-              const waMessage = encodeURIComponent(`Merhaba ${name}, Hanka Mobil Oto Yıkama olarak randevunuz onaylanmıştır.`);
+              // Telefon numarasını temizle ve WhatsApp linkini duruma göre oluştur
+              const cleanPhone = phone.replace(/\D/g, '').replace(/^0/, '');
+              const waMessage = encodeURIComponent(getWaMessage(status, name));
+              const waLink = cleanPhone ? `https://wa.me/90${cleanPhone}?text=${waMessage}` : "";
 
               return (
                 <div key={item.id} style={{ backgroundColor: "#ffffff", padding: "18px", borderRadius: "12px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.1)", border: "1px solid #a7f3d0", display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -258,23 +279,22 @@ export default function AdminPaneli() {
                     <span>💬 Not: {note}</span>
                   </div>
 
-                  {/* İşlem Butonları */}
+                  {/* Durum Butonları ve WhatsApp Butonu */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "5px", paddingTop: "10px", borderTop: "1px solid #f3f4f6", alignItems: "center" }}>
-                    <button onClick={() => updateStatus(item.id, 'onaylandi')} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'onaylandi' ? "#047857" : "#e5e7eb", color: status === 'onaylandi' ? "#fff" : "#374151" }}>Onayla + WP</button>
-                    <button onClick={() => updateStatus(item.id, 'yolda')} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'yolda' ? "#f59e0b" : "#e5e7eb", color: status === 'yolda' ? "#fff" : "#374151" }}>🚗 Yolda + WP</button>
-                    <button onClick={() => updateStatus(item.id, 'basladi')} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'basladi' ? "#3b82f6" : "#e5e7eb", color: status === 'basladi' ? "#fff" : "#374151" }}>🧼 Başladı + WP</button>
-                    <button onClick={() => updateStatus(item.id, 'tamamlandi')} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'tamamlandi' ? "#0284c7" : "#e5e7eb", color: status === 'tamamlandi' ? "#fff" : "#374151" }}>✨ Bitti + WP</button>
+                    <button onClick={() => updateStatus(item.id, 'onaylandi')} style={{ padding: "6px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'onaylandi' ? "#047857" : "#e5e7eb", color: status === 'onaylandi' ? "#fff" : "#374151" }}>Onayla</button>
+                    <button onClick={() => updateStatus(item.id, 'yolda')} style={{ padding: "6px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'yolda' ? "#f59e0b" : "#e5e7eb", color: status === 'yolda' ? "#fff" : "#374151" }}>🚗 Yolda</button>
+                    <button onClick={() => updateStatus(item.id, 'basladi')} style={{ padding: "6px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'basladi' ? "#3b82f6" : "#e5e7eb", color: status === 'basladi' ? "#fff" : "#374151" }}>🧼 Başladı</button>
+                    <button onClick={() => updateStatus(item.id, 'tamamlandi')} style={{ padding: "6px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: status === 'tamamlandi' ? "#0284c7" : "#e5e7eb", color: status === 'tamamlandi' ? "#fff" : "#374151" }}>✨ Bitti</button>
                     
-                    <button onClick={() => deleteAppointment(item.id)} style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: "#dc2626", color: "#fff" }}>Sil</button>
+                    <button onClick={() => deleteAppointment(item.id)} style={{ padding: "6px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", border: "none", cursor: "pointer", backgroundColor: "#dc2626", color: "#fff" }}>Sil</button>
                     
-                    {phone && phone !== "-" && (
+                    {/* Telefonda ve Masaüstünde Doğrudan Çalışan Akıllı WhatsApp Butonu */}
+                    {cleanPhone && (
                       <a 
-                        href={`https://wa.me/90${phone.replace(/\D/g, '').replace(/^0/, '')}?text=${waMessage}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ marginLeft: "auto", backgroundColor: "#25d366", color: "white", padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", textDecoration: "none", display: "flex", alignItems: "center", gap: "3px" }}
+                        href={waLink}
+                        style={{ marginLeft: "auto", backgroundColor: "#25d366", color: "white", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
                       >
-                        💬 WhatsApp
+                        💬 WhatsApp Gönder
                       </a>
                     )}
                   </div>
