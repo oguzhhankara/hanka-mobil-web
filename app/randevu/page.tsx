@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
@@ -7,15 +7,53 @@ export default function RandevuAl() {
   const router = useRouter();
   const [serviceType, setServiceType] = useState("İç-Dış Yıkama");
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("10:00");
+  const [time, setTime] = useState("09:00");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // Başarılı randevu sonrası WhatsApp bağlantısı için state
+  // Dolu veya çakışan saatleri tutacak state
+  const [disabledSlots, setDisabledSlots] = useState<string[]>([]);
   const [successDetails, setSuccessDetails] = useState<any>(null);
+
+  const allSlots = ["09:00", "11:00", "13:00", "15:00", "17:00"];
+
+  // Tarih seçildiğinde o güne ait dolu saatleri ve 2 saatlik çakışmaları hesapla
+  useEffect(() => {
+    if (!date) {
+      setDisabledSlots([]);
+      return;
+    }
+
+    async function checkOccupiedSlots() {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("appointment_date, status")
+        .ilike("appointment_date", `${date}%`);
+
+      if (!error && data) {
+        const blocked: string[] = [];
+        data.forEach(item => {
+          const timePart = item.appointment_date.split("T")[1]?.substring(0, 5);
+          if (timePart) {
+            // 1. Dolu olan saati ekle
+            blocked.push(timePart);
+            
+            // 2. 2 saatlik çalışma süresi kuralı: Bir sonraki saati de otomatik kapat!
+            const currentIndex = allSlots.indexOf(timePart);
+            if (currentIndex !== -1 && currentIndex + 1 < allSlots.length) {
+              blocked.push(allSlots[currentIndex + 1]);
+            }
+          }
+        });
+        setDisabledSlots(blocked);
+      }
+    }
+
+    checkOccupiedSlots();
+  }, [date]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +131,7 @@ export default function RandevuAl() {
           </button>
         </div>
 
-        {/* EĞER RANDEVU BAŞARIYLA OLUŞTURulduysa Bu Ekran Çıkar */}
+        {/* BAŞARILI ONAY EKRANI */}
         {successDetails ? (
           <div style={{ backgroundColor: "#ffffff", padding: "35px 25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", textAlign: "center" }}>
             <div style={{ fontSize: "50px", marginBottom: "15px" }}>🎉</div>
@@ -102,7 +140,6 @@ export default function RandevuAl() {
               Randevu detaylarını yöneticiye (Hanka Mobil WhatsApp hattına) anında iletmek için aşağıdaki butona tıklayabilirsin.
             </p>
 
-            {/* WhatsApp Bildirim Butonu */}
             <a 
               href={`https://wa.me/905367793561?text=${encodeURIComponent(
                 `🚗 *Yeni Randevu Talebi!*\n\n👤 Ad Soyad: ${successDetails.guest_info.name}\n📞 Telefon: ${successDetails.guest_info.phone}\n🛠️ Hizmet: ${successDetails.service_type}\n📅 Tarih & Saat: ${successDetails.appointment_date.replace('T', ' ')}\n📍 Konum: ${successDetails.location}\n💬 Not: ${successDetails.guest_info.note}`
@@ -122,7 +159,7 @@ export default function RandevuAl() {
             </button>
           </div>
         ) : (
-          /* NORMAL RANDEVU FORMU */
+          /* RANDEVU FORMU */
           <div style={{ backgroundColor: "#ffffff", padding: "25px 20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5" }}>
             
             <h1 style={{ fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "20px", textAlign: "center" }}>
@@ -157,17 +194,20 @@ export default function RandevuAl() {
                   />
                 </div>
                 <div style={{ flex: 1, minWidth: "120px" }}>
-                  <label style={labelStyle}>Saat Seç</label>
+                  <label style={labelStyle}>Saat Seç (1.5 - 2 Saat Sürer)</label>
                   <select 
                     value={time} 
                     onChange={(e) => setTime(e.target.value)} 
                     style={inputStyle}
                   >
-                    <option value="09:00">09:00</option>
-                    <option value="11:00">11:00</option>
-                    <option value="13:00">13:00</option>
-                    <option value="15:00">15:00</option>
-                    <option value="17:00">17:00</option>
+                    {allSlots.map((slot) => {
+                      const isDisabled = disabledSlots.includes(slot);
+                      return (
+                        <option key={slot} value={slot} disabled={isDisabled} style={{ color: isDisabled ? "#9ca3af" : "#111827" }}>
+                          {slot} {isDisabled ? "❌ (Dolu / Meşgul)" : "✅ Müsait"}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
