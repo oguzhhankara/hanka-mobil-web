@@ -132,8 +132,9 @@ export default function Randevu() {
             style: { width: "100%", padding: "12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff" }
           },
             h('option', { value: "", disabled: true }, "Lütfen bir hizmet seçin..."),
-            h('option', { value: "Standart Iç-Dis Yikama" }, "Standart Iç-Dis Yikama"),
             h('option', { value: "Detayli Temizlik" }, "Detayli Temizlik"),
+            h('option', { value: "Standart Iç-Dis Yikama" }, "Standart Iç-Dis Yikama"),
+            h('option', { value: "Far Temizliği" }, "Far Temizliği"),
             h('option', { value: "Motor Yikama" }, "Motor Yikama")
           )
         ),
