@@ -1,130 +1,168 @@
 "use client";
-import { useState, useEffect, createElement as h } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
 export default function Home() {
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [bookedTimes, setBookedTimes] = useState<string[]>([]);
+  const router = useRouter();
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const timeSlots = [
+  const allSlots = [
     "09:00", "10:00", "11:00", "12:00", 
-    "13:00", "14:00", "15:00", "16:00", 
-    "17:00", "18:00", "19:00", "20:00"
+    "13:00", "14:00", "15:00", "16:00", "17:00"
   ];
 
+  const timeToMinutes = (timeStr: string) => {
+    const [h, m] = timeStr.split(":").map(Number);
+    return h * 60 + m;
+  };
+
   useEffect(() => {
-    fetchDayAppointments();
+    fetchAppointments();
   }, [selectedDate]);
 
-  const fetchDayAppointments = async () => {
+  const fetchAppointments = async () => {
     setLoading(true);
-    try {
-      const startOfDay = selectedDate + "T00:00:00";
-      const endOfDay = selectedDate + "T23:59:59";
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("appointment_date, status");
 
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('appointment_date, status')
-        .gte('appointment_date', startOfDay)
-        .lte('appointment_date', endOfDay);
-
-      if (!error && data) {
-        const times = data.map((item: any) => {
-          const d = new Date(item.appointment_date);
-          return String(d.getHours()).padStart(2, '0') + ":00";
-        });
-        setBookedTimes(times);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    if (!error && data) {
+      const dayAppointments = data.filter(item => {
+        if (!item.appointment_date) return false;
+        const itemDate = item.appointment_date.split("T")[0];
+        return itemDate === selectedDate;
+      });
+      setAppointments(dayAppointments);
     }
+    setLoading(false);
+  };
+
+  const isSlotDisabled = (slot: string) => {
+    const slotStart = timeToMinutes(slot);
+    const slotEnd = slotStart + 120; // 2 saatlik çalışma süresi
+
+    for (const item of appointments) {
+      const timePart = item.appointment_date.split("T")[1]?.substring(0, 5);
+      if (timePart) {
+        const existingStart = timeToMinutes(timePart);
+        const existingEnd = existingStart + 120;
+
+        if (slotStart < existingEnd && slotEnd > existingStart) {
+          return true;
+        }
+      }
+    }
+    return false;
   };
 
   const handleSelectSlot = (time: string) => {
     const fullDateTime = `${selectedDate}T${time}`;
-    localStorage.setItem('selectedSlot', fullDateTime);
-    window.location.href = '/randevu?date=${selectedDate}&time=${slot}';
+    localStorage.setItem("selectedSlot", fullDateTime);
+    router.push(`/randevu?date=${selectedDate}&time=${time}`);
   };
 
-  return h('main', { style: { minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "40px 20px", fontFamily: "sans-serif" } },
-    h('div', { style: { maxWidth: "700px", margin: "0 auto" } },
-      
-      h('div', { style: { backgroundColor: "#ffffff", padding: "30px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", textAlign: "center", marginBottom: "30px" } },
-        h('div', { style: { display: "flex", justifyContent: "center", marginBottom: "15px" } },
-          h('img', { src: "/logo.png", alt: "Hanka Logo", style: { width: "100px", height: "100px", objectFit: "contain" } })
-        ),
-        h('h1', { style: { fontSize: "30px", fontWeight: "extrabold", color: "#065f46", marginBottom: "5px" } }, "Hanka Mobil Oto Yikama"),
-        h('p', { style: { color: "#047857", fontSize: "15px", fontWeight: "600", marginBottom: "20px" } }, "Bursa'nin Lider Mobil Oto Yikama ve Detayli Temizlik Hizmeti"),
+  return (
+    <main style={{ minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "30px 15px", fontFamily: "sans-serif" }}>
+      <div style={{ maxWidth: "600px", margin: "0 auto" }}>
         
-        h('div', { style: { display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" } },
-          h('a', { href: "/randevu", style: { backgroundColor: "#047857", color: "white", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", textDecoration: "none", fontSize: "14px" } }, "Randevu Al"),
-          h('a', { href: "/uye", style: { backgroundColor: "#ffffff", color: "#047857", border: "2px solid #047857", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", textDecoration: "none", fontSize: "14px" } }, "Uye Girisi / Kartim"),
-          h('a', { href: "/admin", style: { backgroundColor: "#1e3a8a", color: "white", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", textDecoration: "none", fontSize: "14px" } }, "Yonetim Paneli")
-        )
-      ),
+        {/* Üst Bar */}
+        <div style={{ backgroundColor: "#ffffff", padding: "15px 20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <img 
+              src="/logo.png" 
+              alt="Hanka Logo" 
+              style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "6px" }} 
+            />
+            <div>
+              <h2 style={{ fontSize: "16px", fontWeight: "bold", color: "#065f46", margin: 0 }}>Hanka Mobil</h2>
+              <p style={{ fontSize: "11px", color: "#6b7280", margin: 0 }}>Profesyonel Yerinde Oto Yıkama</p>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button 
+              onClick={() => router.push("/uye")} 
+              style={{ backgroundColor: "#047857", color: "white", padding: "8px 12px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer", fontSize: "12px" }}
+            >
+              🎁 Sadakat Kartım
+            </button>
+            <button 
+              onClick={() => router.push("/admin")} 
+              style={{ backgroundColor: "#374151", color: "white", padding: "8px 12px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer", fontSize: "12px" }}
+            >
+              🔒 Yönetici
+            </button>
+          </div>
+        </div>
 
-      h('div', { style: { backgroundColor: "#ffffff", padding: "25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", marginBottom: "30px" } },
-        h('h2', { style: { fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "15px", textAlign: "center" } }, "Hizmetlerimiz"),
-        h('div', { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" } },
-          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Detaylı İç Dış Yıkama"),
-          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Koltuk Yıkama"),
-          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Demir Tozu Temizliği"),
-          h('div', { style: { backgroundColor: "#f0fdf4", border: "1px solid #a7f3d0", padding: "15px", borderRadius: "10px", textAlign: "center", color: "#065f46", fontWeight: "bold", fontSize: "14px" } }, "Far Temizliği")
-        )
-      ),
+        {/* Ana İçerik Kutusu */}
+        <div style={{ backgroundColor: "#ffffff", padding: "25px 20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", textAlign: "center" }}>
+          
+          <h1 style={{ fontSize: "22px", fontWeight: "bold", color: "#065f46", marginBottom: "8px" }}>
+            Saatlik Müsaitlik Takvimi
+          </h1>
+          <p style={{ fontSize: "13px", color: "#4b5563", marginBottom: "20px" }}>
+            Tarih seçerek saatlik müsait durumumuzu canlı görüntüleyin ve randevunuzu oluşturun.
+          </p>
 
-      h('div', { style: { backgroundColor: "#ffffff", padding: "25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5" } },
-        h('h2', { style: { fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "10px", textAlign: "center" } }, "Saatlik Musaitlik Takvimi"),
-        h('p', { style: { color: "#6b7280", textAlign: "center", fontSize: "13px", marginBottom: "20px" } }, "Tarih secerek saatlik musait durumumuzu canli görüntüleyin."),
-        
-        h('div', { style: { marginBottom: "20px", display: "flex", justifyContent: "center", alignItems: "center", gap: "10px" } },
-          h('label', { style: { fontWeight: "bold", color: "#065f46", fontSize: "14px" } }, "Tarih Sec:"),
-          h('input', {
-            type: "date",
-            value: selectedDate,
-            onChange: (e: any) => setSelectedDate(e.target.value),
-            style: { padding: "10px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", color: "#111827", backgroundColor: "#fff", fontWeight: "bold" }
-          })
-        ),
+          {/* Tarih Seçici */}
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", marginBottom: "25px", background: "#f9fafb", padding: "12px", borderRadius: "12px", border: "1px solid #e5e7eb" }}>
+            <label style={{ fontSize: "13px", fontWeight: "bold", color: "#047857" }}>Tarih Seç:</label>
+            <input 
+              type="date" 
+              value={selectedDate} 
+              onChange={(e) => setSelectedDate(e.target.value)} 
+              style={{ padding: "8px 12px", border: "1px solid #a7f3d0", borderRadius: "8px", outline: "none", fontSize: "14px", fontWeight: "600", color: "#111827", backgroundColor: "#fff" }}
+            />
+          </div>
 
-        loading 
-          ? h('p', { style: { textAlign: "center", color: "#6b7280" } }, "Musaitlikler yükleniyor...") 
-          : h('div', { style: { display: "flex", flexDirection: "column", gap: "10px" } },
-              timeSlots.map((time) => {
-                const isBooked = bookedTimes.includes(time);
-                return h('div', { 
-                  key: time, 
-                  style: { 
-                    display: "flex", 
-                    justifyContent: "space-between", 
-                    alignItems: "center", 
-                    padding: "15px 20px", 
-                    borderRadius: "10px", 
-                    border: "1px solid",
-                    borderColor: isBooked ? "#fecaca" : "#a7f3d0",
-                    backgroundColor: isBooked ? "#fef2f2" : "#f0fdf4"
-                  } 
-                },
-                  h('div', { style: { display: "flex", alignItems: "center", gap: "10px" } },
-                    h('span', { style: { fontSize: "18px" } }, isBooked ? "🔴" : "🟢"),
-                    h('span', { style: { fontSize: "16px", fontWeight: "bold", color: "#111827" } }, time)
-                  ),
-                  h('div', null,
-                    isBooked 
-                      ? h('span', { style: { color: "#dc2626", fontWeight: "bold", fontSize: "14px" } }, "Dolu / Randevulu") 
-                      : h('button', { 
-                          onClick: () => handleSelectSlot(time),
-                          style: { backgroundColor: "#047857", color: "white", padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", border: "none", cursor: "pointer" } 
-                        }, "Musait - Randevu Al")
-                  )
+          {/* Saatlik Slot Listesi */}
+          {loading ? (
+            <p style={{ color: "#047857", fontWeight: "bold", padding: "20px" }}>Yükleniyor...</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {allSlots.map((slot) => {
+                const disabled = isSlotDisabled(slot);
+                return (
+                  <div 
+                    key={slot} 
+                    style={{ 
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      alignItems: "center", 
+                      padding: "14px 18px", 
+                      borderRadius: "10px", 
+                      backgroundColor: disabled ? "#fee2e2" : "#f0fdf4", 
+                      border: `1px solid ${disabled ? "#fca5a5" : "#a7f3d0"}` 
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: disabled ? "#dc2626" : "#10b981", display: "inline-block" }}></span>
+                      <span style={{ fontSize: "15px", fontWeight: "bold", color: "#111827" }}>{slot}</span>
+                    </div>
+
+                    {disabled ? (
+                      <span style={{ fontSize: "13px", fontWeight: "bold", color: "#991b1b" }}>Dolu / Randevulu</span>
+                    ) : (
+                      <button 
+                        onClick={() => handleSelectSlot(slot)}
+                        style={{ backgroundColor: "#047857", color: "white", padding: "8px 14px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer", fontSize: "13px" }}
+                      >
+                        Müsait - Randevu Al
+                      </button>
+                    )}
+                  </div>
                 );
-              })
-            )
-      )
+              })}
+            </div>
+          )}
 
-    )
+        </div>
+
+      </div>
+    </main>
   );
 }
