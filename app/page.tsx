@@ -46,7 +46,7 @@ export default function Home() {
   const handleSelectSlot = (time: string) => {
     const fullDateTime = `${selectedDate}T${time}`;
     localStorage.setItem('selectedSlot', fullDateTime);
-    window.location.href = '/randevu';
+    window.location.href = '/randevu?date=${selectedDate}&time=${slot}';
   };
 
   return h('main', { style: { minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "40px 20px", fontFamily: "sans-serif" } },
