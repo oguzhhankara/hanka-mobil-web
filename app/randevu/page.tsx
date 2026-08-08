@@ -7,7 +7,6 @@ function RandevuFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // URL'den tarih ve saati otomatik yakala
   const initialDate = searchParams.get("date") || "";
   const initialTime = searchParams.get("time") || "09:00";
 
@@ -23,20 +22,15 @@ function RandevuFormContent() {
   const [disabledSlots, setDisabledSlots] = useState<string[]>([]);
   const [successDetails, setSuccessDetails] = useState<any>(null);
 
-  const allSlots = [
-    "09:00", "10:00", "11:00", "12:00", 
-    "13:00", "14:00", "15:00", "16:00", "17:00"
-  ];
+  const allSlots = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
 
   const timeToMinutes = (timeStr: string) => {
     const [h, m] = timeStr.split(":").map(Number);
     return h * 60 + m;
   };
 
-  // Tarih değiştiğinde dolu saatleri hesapla
   useEffect(() => {
     if (!date) return;
-
     async function checkOccupiedSlots() {
       const { data } = await supabase.from("appointments").select("appointment_date");
       if (data) {
@@ -48,7 +42,7 @@ function RandevuFormContent() {
             const timePart = itemTimeFull ? itemTimeFull.substring(0, 5) : "";
             if (timePart) {
               const existingStart = timeToMinutes(timePart);
-              const existingEnd = existingStart + 120; // 2 saatlik blok
+              const existingEnd = existingStart + 120;
               allSlots.forEach(slot => {
                 const slotStart = timeToMinutes(slot);
                 const slotEnd = slotStart + 120;
@@ -68,9 +62,9 @@ function RandevuFormContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // SADECE TARİH ZORUNLU
-    if (!date) {
-      alert("Lütfen bir tarih seçin!");
+    // ZORUNLULUK KONTROLÜ
+    if (!date || !name || !phone || !location) {
+      alert("Lütfen Tarih, Ad Soyad, Telefon ve Adres alanlarını boş bırakmayın!");
       return;
     }
 
@@ -80,30 +74,20 @@ function RandevuFormContent() {
     const newAppointment = {
       service_type: serviceType,
       appointment_date: appointmentDateTime,
-      location: location || "Belirtilmedi",
+      location: location,
       status: "onaylandi",
-      guest_info: { 
-        name: name || "İsimsiz Müşteri", 
-        phone: phone || "Belirtilmedi", 
-        note: note || "Belirtilmedi" 
-      },
+      guest_info: { name, phone, note: note || "Belirtilmedi" },
     };
 
     const { error } = await supabase.from("appointments").insert([newAppointment]);
 
     if (!error) {
-      // Başarılıysa e-posta gönder
       try {
         await fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: name || "İsimsiz Müşteri", 
-            phone: phone || "Belirtilmedi", 
-            date: appointmentDateTime, 
-            service: serviceType, 
-            location: location || "Belirtilmedi", 
-            note: note || "Belirtilmedi"
+            name, phone, date: appointmentDateTime, service: serviceType, location, note
           })
         });
       } catch (err) {
@@ -122,8 +106,6 @@ function RandevuFormContent() {
   return (
     <main style={{ minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "30px 15px", fontFamily: "sans-serif" }}>
       <div style={{ maxWidth: "550px", margin: "0 auto" }}>
-        
-        {/* Üst Bar */}
         <div style={{ backgroundColor: "#ffffff", padding: "15px 20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <img src="/logo.png" alt="Logo" style={{ width: "36px", height: "36px", objectFit: "contain", borderRadius: "6px" }} />
@@ -132,7 +114,6 @@ function RandevuFormContent() {
           <button onClick={() => router.push("/")} style={{ backgroundColor: "#047857", color: "white", padding: "8px 12px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer", fontSize: "12px" }}>Ana Sayfa</button>
         </div>
 
-        {/* Başarı Ekranı */}
         {successDetails ? (
           <div style={{ backgroundColor: "#ffffff", padding: "35px 25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", textAlign: "center" }}>
             <div style={{ fontSize: "50px", marginBottom: "15px" }}>🎉</div>
@@ -141,7 +122,6 @@ function RandevuFormContent() {
             <button onClick={() => router.push("/")} style={{ width: "100%", backgroundColor: "#047857", color: "white", padding: "12px", fontWeight: "bold", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px" }}>Ana Sayfaya Dön</button>
           </div>
         ) : (
-          /* Randevu Formu */
           <div style={{ backgroundColor: "#ffffff", padding: "25px 20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5" }}>
             <h1 style={{ fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "20px", textAlign: "center" }}>Randevu Oluştur</h1>
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -156,12 +136,12 @@ function RandevuFormContent() {
                 </select>
               </div>
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: "140px" }}><label style={labelStyle}>Tarih Seç</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} /></div>
+                <div style={{ flex: 1, minWidth: "140px" }}><label style={labelStyle}>Tarih Seç</label><input type="date" required value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} /></div>
                 <div style={{ flex: 1, minWidth: "120px" }}><label style={labelStyle}>Saat Seç</label><select value={time} onChange={(e) => setTime(e.target.value)} style={inputStyle}>{allSlots.map(slot => (<option key={slot} value={slot} disabled={disabledSlots.includes(slot)} style={{ color: disabledSlots.includes(slot) ? "#9ca3af" : "#111827", backgroundColor: disabledSlots.includes(slot) ? "#f3f4f6" : "#ffffff" }}>{slot} {disabledSlots.includes(slot) ? "❌ (Dolu)" : "✅ Müsait"}</option>))}</select></div>
               </div>
-              <div><label style={labelStyle}>Ad Soyad (İsteğe bağlı)</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Telefon (İsteğe bağlı)</label><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Konum (İsteğe bağlı)</label><input type="text" value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Ad Soyad (Zorunlu)</label><input type="text" required value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Telefon (Zorunlu)</label><input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Konum / Adres (Zorunlu)</label><input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle} /></div>
               <div><label style={labelStyle}>Ek İstekler</label><textarea value={note} onChange={(e) => setNote(e.target.value)} style={{ ...inputStyle, minHeight: "80px" }} /></div>
               <button type="submit" disabled={loading} style={{ backgroundColor: "#047857", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "15px", marginTop: "10px", width: "100%" }}>{loading ? "Kaydediliyor..." : "Randevu Oluştur"}</button>
             </form>
