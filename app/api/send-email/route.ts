@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   try {
     await resend.emails.send({
       from: 'Hanka Mobil <onboarding@resend.dev>', 
-      to: 'oguzhkara@gmail.com', // BURAYA KENDİ MAİLİNİ YAZ
+      to: 'oguzhkara@gmail.com', // BURAYA KENDİ MAİLİNİ YAZ.
       subject: '🚗 Yeni Randevu Talebi Var!',
       html: `
         <h1>Yeni Randevu Geldi!</h1>
