@@ -71,8 +71,9 @@ function RandevuFormContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !name || !phone) {
-      alert("Lütfen tarih, isim ve telefon alanlarını doldurun!");
+    // SADECE TARİH ZORUNLU
+    if (!date) {
+      alert("Lütfen önce bir tarih seçin!");
       return;
     }
 
@@ -85,7 +86,11 @@ function RandevuFormContent() {
       appointment_date: appointmentDateTime,
       location: location || "Belirtilmedi",
       status: "onaylandi",
-      guest_info: { name, phone, note: note || "Belirtilmedi" },
+      guest_info: { 
+        name: name || "İsimsiz Müşteri", 
+        phone: phone || "Belirtilmedi", 
+        note: note || "Belirtilmedi" 
+      },
     };
 
     const { error } = await supabase.from("appointments").insert([newAppointment]);
@@ -97,7 +102,12 @@ function RandevuFormContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name, phone, date: appointmentDateTime, service: serviceType, location, note
+            name: name || "İsimsiz Müşteri", 
+            phone: phone || "Belirtilmedi", 
+            date: appointmentDateTime, 
+            service: serviceType, 
+            location: location || "Belirtilmedi", 
+            note: note || "Belirtilmedi"
           })
         });
       } catch (err) {
@@ -150,9 +160,9 @@ function RandevuFormContent() {
                 <div style={{ flex: 1, minWidth: "140px" }}><label style={labelStyle}>Tarih Seç</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} /></div>
                 <div style={{ flex: 1, minWidth: "120px" }}><label style={labelStyle}>Saat Seç (2 Saat Sürer)</label><select value={time} onChange={(e) => setTime(e.target.value)} style={inputStyle}>{allSlots.map(slot => (<option key={slot} value={slot} disabled={disabledSlots.includes(slot)} style={{ color: disabledSlots.includes(slot) ? "#9ca3af" : "#111827", backgroundColor: disabledSlots.includes(slot) ? "#f3f4f6" : "#ffffff" }}>{slot} {disabledSlots.includes(slot) ? "❌ (Dolu)" : "✅ Müsait"}</option>))}</select></div>
               </div>
-              <div><label style={labelStyle}>Ad Soyad</label><input type="text" placeholder="Adınız Soyadınız" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Telefon Numarası</label><input type="tel" placeholder="05XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Konum / Adres</label><input type="text" placeholder="Araç konumu" value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Ad Soyad (İsteğe bağlı)</label><input type="text" placeholder="Adınız Soyadınız" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Telefon Numarası (İsteğe bağlı)</label><input type="tel" placeholder="05XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Konum / Adres (İsteğe bağlı)</label><input type="text" placeholder="Araç konumu" value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle} /></div>
               <div><label style={labelStyle}>Ek İstekler</label><textarea placeholder="Ek istekler..." value={note} onChange={(e) => setNote(e.target.value)} style={{ ...inputStyle, minHeight: "80px" }} /></div>
               <button type="submit" disabled={loading} style={{ backgroundColor: "#047857", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "15px", marginTop: "10px", width: "100%" }}>{loading ? "Kaydediliyor..." : "Randevu Oluştur"}</button>
             </form>
