@@ -7,6 +7,7 @@ function RandevuFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
+  // URL'den tarih ve saati otomatik yakala
   const initialDate = searchParams.get("date") || "";
   const initialTime = searchParams.get("time") || "09:00";
 
@@ -32,18 +33,13 @@ function RandevuFormContent() {
     return h * 60 + m;
   };
 
+  // Tarih değiştiğinde dolu saatleri hesapla
   useEffect(() => {
-    if (!date) {
-      setDisabledSlots([]);
-      return;
-    }
+    if (!date) return;
 
     async function checkOccupiedSlots() {
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("appointment_date");
-
-      if (!error && data) {
+      const { data } = await supabase.from("appointments").select("appointment_date");
+      if (data) {
         const blocked: string[] = [];
         data.forEach(item => {
           if (!item.appointment_date) return;
@@ -52,7 +48,7 @@ function RandevuFormContent() {
             const timePart = itemTimeFull ? itemTimeFull.substring(0, 5) : "";
             if (timePart) {
               const existingStart = timeToMinutes(timePart);
-              const existingEnd = existingStart + 120;
+              const existingEnd = existingStart + 120; // 2 saatlik blok
               allSlots.forEach(slot => {
                 const slotStart = timeToMinutes(slot);
                 const slotEnd = slotStart + 120;
@@ -71,16 +67,16 @@ function RandevuFormContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     // SADECE TARİH ZORUNLU
     if (!date) {
-      alert("Lütfen önce bir tarih seçin!");
+      alert("Lütfen bir tarih seçin!");
       return;
     }
 
     setLoading(true);
     const appointmentDateTime = `${date}T${time}:00`;
 
-    // 1. Supabase'e Kaydet
     const newAppointment = {
       service_type: serviceType,
       appointment_date: appointmentDateTime,
@@ -96,7 +92,7 @@ function RandevuFormContent() {
     const { error } = await supabase.from("appointments").insert([newAppointment]);
 
     if (!error) {
-      // 2. Başarılıysa Mail At
+      // Başarılıysa e-posta gönder
       try {
         await fetch('/api/send-email', {
           method: 'POST',
@@ -111,11 +107,11 @@ function RandevuFormContent() {
           })
         });
       } catch (err) {
-        console.error("Mail gönderilemedi ama randevu kaydedildi.");
+        console.error("Mail gönderilemedi.");
       }
       setSuccessDetails(newAppointment);
     } else {
-      alert("Hata: " + error.message);
+      alert("Hata oluştu: " + error.message);
     }
     setLoading(false);
   };
@@ -126,23 +122,26 @@ function RandevuFormContent() {
   return (
     <main style={{ minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "30px 15px", fontFamily: "sans-serif" }}>
       <div style={{ maxWidth: "550px", margin: "0 auto" }}>
+        
+        {/* Üst Bar */}
         <div style={{ backgroundColor: "#ffffff", padding: "15px 20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <img src="/logo.png" alt="Hanka Logo" style={{ width: "36px", height: "36px", objectFit: "contain", borderRadius: "6px" }} />
+            <img src="/logo.png" alt="Logo" style={{ width: "36px", height: "36px", objectFit: "contain", borderRadius: "6px" }} />
             <h2 style={{ fontSize: "17px", fontWeight: "bold", color: "#065f46", margin: 0 }}>Hanka Mobil</h2>
           </div>
-          <button onClick={() => router.push("/")} style={{ backgroundColor: "#047857", color: "white", padding: "8px 12px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer", fontSize: "12px" }}>Ana Sayfaya Dön</button>
+          <button onClick={() => router.push("/")} style={{ backgroundColor: "#047857", color: "white", padding: "8px 12px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer", fontSize: "12px" }}>Ana Sayfa</button>
         </div>
 
+        {/* Başarı Ekranı */}
         {successDetails ? (
           <div style={{ backgroundColor: "#ffffff", padding: "35px 25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", textAlign: "center" }}>
             <div style={{ fontSize: "50px", marginBottom: "15px" }}>🎉</div>
             <h2 style={{ fontSize: "22px", fontWeight: "bold", color: "#065f46", marginBottom: "10px" }}>Randevunuz Başarıyla Alındı!</h2>
-            <p style={{ color: "#4b5563", fontSize: "14px", marginBottom: "25px", lineHeight: "1.5" }}>E-posta bildirimi gönderildi. Yöneticiye WhatsApp ile de bildirebilirsin.</p>
             <a href={`https://wa.me/905367793561?text=${encodeURIComponent(`🚗 *Yeni Randevu!*\n👤 Ad Soyad: ${successDetails.guest_info.name}\n📞 Tel: ${successDetails.guest_info.phone}\n🛠️ Hizmet: ${successDetails.service_type}\n📅 Tarih: ${successDetails.appointment_date.replace('T', ' ')}`)}`} target="_blank" style={{ display: "block", backgroundColor: "#25d366", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "10px", textDecoration: "none", fontSize: "15px", marginBottom: "12px" }}>💬 WhatsApp ile Bildir</a>
             <button onClick={() => router.push("/")} style={{ width: "100%", backgroundColor: "#047857", color: "white", padding: "12px", fontWeight: "bold", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px" }}>Ana Sayfaya Dön</button>
           </div>
         ) : (
+          /* Randevu Formu */
           <div style={{ backgroundColor: "#ffffff", padding: "25px 20px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5" }}>
             <h1 style={{ fontSize: "20px", fontWeight: "bold", color: "#065f46", marginBottom: "20px", textAlign: "center" }}>Randevu Oluştur</h1>
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -158,12 +157,12 @@ function RandevuFormContent() {
               </div>
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: "140px" }}><label style={labelStyle}>Tarih Seç</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} /></div>
-                <div style={{ flex: 1, minWidth: "120px" }}><label style={labelStyle}>Saat Seç (2 Saat Sürer)</label><select value={time} onChange={(e) => setTime(e.target.value)} style={inputStyle}>{allSlots.map(slot => (<option key={slot} value={slot} disabled={disabledSlots.includes(slot)} style={{ color: disabledSlots.includes(slot) ? "#9ca3af" : "#111827", backgroundColor: disabledSlots.includes(slot) ? "#f3f4f6" : "#ffffff" }}>{slot} {disabledSlots.includes(slot) ? "❌ (Dolu)" : "✅ Müsait"}</option>))}</select></div>
+                <div style={{ flex: 1, minWidth: "120px" }}><label style={labelStyle}>Saat Seç</label><select value={time} onChange={(e) => setTime(e.target.value)} style={inputStyle}>{allSlots.map(slot => (<option key={slot} value={slot} disabled={disabledSlots.includes(slot)} style={{ color: disabledSlots.includes(slot) ? "#9ca3af" : "#111827", backgroundColor: disabledSlots.includes(slot) ? "#f3f4f6" : "#ffffff" }}>{slot} {disabledSlots.includes(slot) ? "❌ (Dolu)" : "✅ Müsait"}</option>))}</select></div>
               </div>
-              <div><label style={labelStyle}>Ad Soyad (İsteğe bağlı)</label><input type="text" placeholder="Adınız Soyadınız" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Telefon Numarası (İsteğe bağlı)</label><input type="tel" placeholder="05XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Konum / Adres (İsteğe bağlı)</label><input type="text" placeholder="Araç konumu" value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Ek İstekler</label><textarea placeholder="Ek istekler..." value={note} onChange={(e) => setNote(e.target.value)} style={{ ...inputStyle, minHeight: "80px" }} /></div>
+              <div><label style={labelStyle}>Ad Soyad (İsteğe bağlı)</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Telefon (İsteğe bağlı)</label><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Konum (İsteğe bağlı)</label><input type="text" value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Ek İstekler</label><textarea value={note} onChange={(e) => setNote(e.target.value)} style={{ ...inputStyle, minHeight: "80px" }} /></div>
               <button type="submit" disabled={loading} style={{ backgroundColor: "#047857", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "15px", marginTop: "10px", width: "100%" }}>{loading ? "Kaydediliyor..." : "Randevu Oluştur"}</button>
             </form>
           </div>
