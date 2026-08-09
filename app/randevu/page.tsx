@@ -129,10 +129,10 @@ function RandevuFormContent() {
                 <label style={labelStyle}>Ana Hizmet Türü</label>
                 <select value={serviceType} onChange={(e) => setServiceType(e.target.value)} style={inputStyle}>
                   <option value="İç-Dış Yıkama">İç-Dış Yıkama</option>
-                  <option value="Pasta Cila">Pasta Cila</option>
                   <option value="Detaylı Temizlik">Detaylı Temizlik</option>
-                  <option value="Seramik Kaplama">Seramik Kaplama</option>
-                  <option value="Motor Yıkama">Motor Yıkama</option>
+                  <option value="Kumaş Koltuk Yıkama">Kumaş Koltuk Yıkama</option>
+                  <option value="Deri Koltuk Temizliği">Deri Koltuk Temizliği</option>
+                  <option value="Far Parlatma">Far Parlatma</option>
                 </select>
               </div>
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
