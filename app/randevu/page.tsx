@@ -62,7 +62,6 @@ function RandevuFormContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ZORUNLULUK KONTROLÜ
     if (!date || !name || !phone || !location) {
       alert("Lütfen Tarih, Ad Soyad, Telefon ve Adres alanlarını boş bırakmayın!");
       return;
@@ -118,6 +117,9 @@ function RandevuFormContent() {
           <div style={{ backgroundColor: "#ffffff", padding: "35px 25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", textAlign: "center" }}>
             <div style={{ fontSize: "50px", marginBottom: "15px" }}>🎉</div>
             <h2 style={{ fontSize: "22px", fontWeight: "bold", color: "#065f46", marginBottom: "10px" }}>Randevunuz Başarıyla Alındı!</h2>
+            <p style={{ color: "#374151", fontSize: "14px", marginBottom: "25px", lineHeight: "1.5", fontWeight: "500" }}>
+              Randevunuz bize iletilmiştir. Daha hızlı ilerlemek için aşağıdaki butona tıklayarak WhatsApp üzerinden mesaj atabilirsiniz.
+            </p>
             <a href={`https://wa.me/905367793561?text=${encodeURIComponent(`🚗 *Yeni Randevu!*\n👤 Ad Soyad: ${successDetails.guest_info.name}\n📞 Tel: ${successDetails.guest_info.phone}\n🛠️ Hizmet: ${successDetails.service_type}\n📅 Tarih: ${successDetails.appointment_date.replace('T', ' ')}`)}`} target="_blank" style={{ display: "block", backgroundColor: "#25d366", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "10px", textDecoration: "none", fontSize: "15px", marginBottom: "12px" }}>💬 WhatsApp ile Bildir</a>
             <button onClick={() => router.push("/")} style={{ width: "100%", backgroundColor: "#047857", color: "white", padding: "12px", fontWeight: "bold", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px" }}>Ana Sayfaya Dön</button>
           </div>
