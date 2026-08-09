@@ -46,8 +46,8 @@ export default function UyePaneli() {
 
   // Sadakat hesaplamaları
   const totalWashes = history.length;
-  const currentCycle = totalWashes === 0 ? 0 : (totalWashes % 7 === 0 ? 7 : totalWashes % 7);
-  const remainingForFree = totalWashes === 0 ? 7 : (7 - currentCycle);
+  const currentCycle = totalWashes === 0 ? 0 : (totalWashes % 6 === 0 ? 6 : totalWashes % 6);
+  const remainingForFree = totalWashes === 0 ? 6 : (6 - currentCycle);
 
   return (
     <main style={{ minHeight: "100vh", backgroundColor: "#f0fdf4", padding: "40px 20px", fontFamily: "sans-serif" }}>
@@ -106,16 +106,16 @@ export default function UyePaneli() {
 
                 <div style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", padding: "12px", borderRadius: "10px" }}>
                   <p style={{ fontSize: "15px", fontWeight: "bold", margin: "0 0 4px 0" }}>
-                    {totalWashes > 0 && totalWashes % 7 === 0 
-                      ? "🎉 Tebrikler! 7. Yıkamanız Bizden Hediye!" 
+                    {totalWashes > 0 && totalWashes % 6 === 0 
+                      ? "🎉 Tebrikler! 6. Yıkamanız Bizden Hediye!" 
                       : `🎁 Ücretsiz Hediye Yıkamaya Son ${remainingForFree} Yıkama!`}
                   </p>
-                  <p style={{ fontSize: "12px", opacity: 0.9, margin: 0 }}>Her 7. yıkamada bir sonraki yıkama Hanka Mobil'den hediye! 💧</p>
+                  <p style={{ fontSize: "12px", opacity: 0.9, margin: 0 }}>Her 6. yıkamada bir sonraki yıkama Hanka Mobil'den hediye! 💧</p>
                 </div>
 
                 {/* 7'li Görsel İlerleme Kutuları */}
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "6px", marginTop: "5px" }}>
-                  {[1, 2, 3, 4, 5, 6, 7].map((stepNum) => {
+                  {[1, 2, 3, 4, 5, 6 ].map((stepNum) => {
                     const isCompleted = stepNum <= currentCycle;
                     return (
                       <div key={stepNum} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
