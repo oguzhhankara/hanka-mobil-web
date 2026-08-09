@@ -117,9 +117,7 @@ function RandevuFormContent() {
           <div style={{ backgroundColor: "#ffffff", padding: "35px 25px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)", border: "1px solid #d1fae5", textAlign: "center" }}>
             <div style={{ fontSize: "50px", marginBottom: "15px" }}>🎉</div>
             <h2 style={{ fontSize: "22px", fontWeight: "bold", color: "#065f46", marginBottom: "10px" }}>Randevunuz Başarıyla Alındı!</h2>
-            <p style={{ color: "#374151", fontSize: "14px", marginBottom: "25px", lineHeight: "1.5", fontWeight: "500" }}>
-              Randevunuz bize iletilmiştir. Daha hızlı ilerlemek için aşağıdaki butona tıklayarak WhatsApp üzerinden mesaj atabilirsiniz.
-            </p>
+            <p style={{ color: "#374151", fontSize: "14px", marginBottom: "25px", lineHeight: "1.5", fontWeight: "500" }}>Randevunuz bize iletilmiştir. Daha hızlı ilerlemek için aşağıdaki butona tıklayarak WhatsApp üzerinden mesaj atabilirsiniz.</p>
             <a href={`https://wa.me/905367793561?text=${encodeURIComponent(`🚗 *Yeni Randevu!*\n👤 Ad Soyad: ${successDetails.guest_info.name}\n📞 Tel: ${successDetails.guest_info.phone}\n🛠️ Hizmet: ${successDetails.service_type}\n📅 Tarih: ${successDetails.appointment_date.replace('T', ' ')}`)}`} target="_blank" style={{ display: "block", backgroundColor: "#25d366", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "10px", textDecoration: "none", fontSize: "15px", marginBottom: "12px" }}>💬 WhatsApp ile Bildir</a>
             <button onClick={() => router.push("/")} style={{ width: "100%", backgroundColor: "#047857", color: "white", padding: "12px", fontWeight: "bold", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px" }}>Ana Sayfaya Dön</button>
           </div>
@@ -142,7 +140,19 @@ function RandevuFormContent() {
                 <div style={{ flex: 1, minWidth: "120px" }}><label style={labelStyle}>Saat Seç</label><select value={time} onChange={(e) => setTime(e.target.value)} style={inputStyle}>{allSlots.map(slot => (<option key={slot} value={slot} disabled={disabledSlots.includes(slot)} style={{ color: disabledSlots.includes(slot) ? "#9ca3af" : "#111827", backgroundColor: disabledSlots.includes(slot) ? "#f3f4f6" : "#ffffff" }}>{slot} {disabledSlots.includes(slot) ? "❌ (Dolu)" : "✅ Müsait"}</option>))}</select></div>
               </div>
               <div><label style={labelStyle}>Ad Soyad (Zorunlu)</label><input type="text" required value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Telefon (Zorunlu)</label><input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} /></div>
+              
+              {/* TELEFON ALANI BURADA DEĞİŞTİ */}
+              <div>
+                <label style={labelStyle}>Telefon (Zorunlu - Sadece Rakam)</label>
+                <input 
+                  type="tel" 
+                  required 
+                  value={phone} 
+                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))} 
+                  style={inputStyle} 
+                />
+              </div>
+
               <div><label style={labelStyle}>Konum / Adres (Zorunlu)</label><input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle} /></div>
               <div><label style={labelStyle}>Ek İstekler</label><textarea value={note} onChange={(e) => setNote(e.target.value)} style={{ ...inputStyle, minHeight: "80px" }} /></div>
               <button type="submit" disabled={loading} style={{ backgroundColor: "#047857", color: "white", padding: "14px", fontWeight: "bold", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "15px", marginTop: "10px", width: "100%" }}>{loading ? "Kaydediliyor..." : "Randevu Oluştur"}</button>
